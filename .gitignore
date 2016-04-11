@@ -1,0 +1,42 @@
+# User-specific files
+
+*.suo
+
+*.user
+*.sln.docstates
+
+.vs/
+
+*.DS_Store
+
+# Build results
+
+debug/
+release/
+bin/
+
+*.vspscc
+
+*.vssscc
+*.cache
+*.log
+
+*.dll
+
+*.pdb
+
+*.tmp
+vwd.webinfo
+
+# NuGet
+!packages.config
+!repositories.config
+/packages/*
+NetTools/packages/*
+WebSites/Pure/packages/*
+WebSites/TestPortal/packages/*
+Installer/BuildConfig/packages/*
+NetTools/SOAP/packages/*
+Installer/InstallBuilder/Scripts/TestPortalInstall/packages/*
+WebSites/Internal/SupportExtension/packages/*
+WebSites/Internal/SupportExtension/Licensing/Site/
