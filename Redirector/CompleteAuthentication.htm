@@ -1,0 +1,30 @@
+<script type="text/javascript">
+function get(value, name)
+{
+    var result, tmp = [];
+    var items = value.split("&");
+    for (var index = 0; index < items.length; index++) {
+        tmp = items[index].split("=");
+        if (tmp[0] === name) result = decodeURIComponent(tmp[1]);
+    }
+    return result;
+}
+
+var error = get(location.search.substr(1), 'error')
+if(error)
+{
+    var errorDescription = get(location.search.substr(1), 'error_description').replace(/\+/g, " ");
+    document.write('<H1>' + errorDescription + ' (' + error + ')' + '</H1>');
+}
+else
+{
+    var state = window.atob(get(location.search.substr(1), 'state'));
+    var code = get(location.search.substr(1), 'code');
+
+    var acumaticaUrl = get(state, 'acumaticaUrl');
+    var userID = get(state, 'userID');
+
+    var redirectUrl = acumaticaUrl + '?userID=' + userID + '&code=' + code;
+    window.location.replace(redirectUrl);
+}
+</script>
