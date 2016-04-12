@@ -29,8 +29,9 @@ namespace PX.SM.BoxStorageProvider
             PXLongOperation.StartOperation(this, delegate
             {
                 this.User.Cache.Clear();
+                var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
                 BoxUserTokens boxUser = PXCache<BoxUserTokens>.CreateCopy(this.User.Select());
-                var userInfo = BoxUtils.GetUserInfo(boxUser.AccessToken, boxUser.RefreshToken).Result;
+                var userInfo = BoxUtils.GetUserInfo(tokenHandler).Result;
                 boxUser.BoxUserID = userInfo.Id;
                 boxUser.BoxEmailAddress = userInfo.Login;
                 this.User.Update(boxUser);

@@ -14,7 +14,6 @@ namespace PX.SM.BoxStorageProvider
     {
         public const string MiscellaneousFolderScreenId = "00000000";
 
-        public PXSetup<BoxUserTokens, Where<BoxUserTokens.userID, Equal<Current<AccessInfo.userID>>>> User;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.screenID, Equal<Required<BoxFolderCache.screenID>>>> FoldersByScreen;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.folderID, Equal<Required<BoxFolderCache.folderID>>>> FoldersByFolderID;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByNote;
@@ -28,6 +27,7 @@ namespace PX.SM.BoxStorageProvider
 
         public BoxUtils.FileFolderInfo GetOrCreateBoxFolderForNoteID(Guid refNoteID)
         {
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             var bfc = (BoxFolderCache) this.FoldersByNote.Select(refNoteID);
             if (bfc == null)
             {
@@ -49,11 +49,11 @@ namespace PX.SM.BoxStorageProvider
 
                 // Try to find folder; if it doesn't exist, create it.
                 string folderName = GetFolderNameForEntityRow(entityRow);
-                BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, bfcParent.FolderID, folderName).Result;
+                BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, bfcParent.FolderID, folderName).Result;
                 if (folderInfo == null)
                 {
                     // Folder doesn't exist on Box, create it.
-                    folderInfo = BoxUtils.CreateFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, folderName, bfcParent.FolderID).Result;
+                    folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID).Result;
                 }
 
                 // Store the folder info in our local cache for future reference
@@ -70,11 +70,11 @@ namespace PX.SM.BoxStorageProvider
             else
             { 
                 // Folder was found in BoxFolderCache, retrieve it by ID
-                BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(this.User.Current.AccessToken, this.User.Current.RefreshToken, bfc.FolderID).Result;
+                BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(tokenHandler, bfc.FolderID).Result;
                 return folderInfo;
             }
         }
-
+        
         private string GetFolderNameForEntityRow(object entityRow)
         {
             PXCache cache = this.Caches[entityRow.GetType()];
@@ -89,15 +89,17 @@ namespace PX.SM.BoxStorageProvider
         public byte[] DownloadFileFromBox(Guid blobHandler)
         {
             //TODO: Test what happens if file has been deleted from Box but is still in Acumatica. Needs to show a proper exception.
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
-            return BoxUtils.DownloadFile(this.User.Current.AccessToken, this.User.Current.RefreshToken, bfc.FileID).Result;
+            return BoxUtils.DownloadFile(tokenHandler, bfc.FileID).Result;
         }
 
         public void DeleteFileFromBox(Guid blobHandler)
         {
             //TODO: Test what happens if file has been deleted from Box but is still in Acumatica. Needs to show a proper exception.
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
-            BoxUtils.DeleteFile(this.User.Current.AccessToken, this.User.Current.RefreshToken, bfc.FileID);
+            BoxUtils.DeleteFile(tokenHandler, bfc.FileID);
         }
 
         public Guid SaveFileToBoxAndUpdateFileCache(byte[] data, PXBlobStorageContext saveContext)
@@ -105,11 +107,13 @@ namespace PX.SM.BoxStorageProvider
             BoxUtils.FileFolderInfo boxFile = null;
             Guid blobHandlerGuid = Guid.NewGuid();
 
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+
             if (saveContext == null || saveContext.FileInfo == null || !saveContext.FileInfo.NoteID.HasValue)
             {
                 //We don't know on which screen this file belongs. We'll have to save it in miscellaneous files folder.
                 BoxUtils.FileFolderInfo boxFolder = GetMiscellaneousFolder();
-                boxFile = BoxUtils.UploadFile(this.User.Current.AccessToken, this.User.Current.RefreshToken, boxFolder.ID, blobHandlerGuid.ToString(), data).Result;
+                boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, blobHandlerGuid.ToString(), data).Result;
             }
             else
             {
@@ -117,11 +121,11 @@ namespace PX.SM.BoxStorageProvider
                 string fileName = BoxUtils.CleanFileOrFolderName(Path.GetFileName(saveContext.FileInfo.Name));
 
                 //TODO: Handle file conflicts - for the miscellaneous folder in some cases and we need to handle potential conflicts
-                boxFile = BoxUtils.UploadFile(this.User.Current.AccessToken, this.User.Current.RefreshToken, boxFolder.ID, fileName, data).Result;
+                boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, fileName, data).Result;
 
                 if (!String.IsNullOrEmpty(saveContext.FileInfo.Comment))
                 {
-                    BoxUtils.SetFileDescription(this.User.Current.AccessToken, this.User.Current.RefreshToken, boxFile.ID, saveContext.FileInfo.Comment).Wait();
+                    BoxUtils.SetFileDescription(tokenHandler, boxFile.ID, saveContext.FileInfo.Comment).Wait();
                 }
             }
 
@@ -139,7 +143,8 @@ namespace PX.SM.BoxStorageProvider
         {
             Guid blobHandler = GetBlobHandlerForFileID(fileID);
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
-            BoxUtils.FileFolderInfo fileInfo = BoxUtils.GetFileInfo(this.User.Current.AccessToken, this.User.Current.RefreshToken, bfc.FileID).Result;
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+            BoxUtils.FileFolderInfo fileInfo = BoxUtils.GetFileInfo(tokenHandler, bfc.FileID).Result;
             if (fileInfo == null) throw new PXException(Messages.FileNotFoundInBox, bfc.FileID);
 
             return fileInfo;
@@ -158,7 +163,8 @@ namespace PX.SM.BoxStorageProvider
             string rootFolderName = GetRootFolderName();
             if (string.IsNullOrEmpty(rootFolderName)) throw new PXException(Messages.RootFolderNotSetup);
 
-            BoxUtils.FileFolderInfo rootFolder = BoxUtils.FindFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, "0", rootFolderName).Result;
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+            BoxUtils.FileFolderInfo rootFolder = BoxUtils.FindFolder(tokenHandler, "0", rootFolderName).Result;
             if (rootFolder == null) throw new PXException(Messages.RootFolderNotFound, rootFolderName);
 
             return rootFolder;
@@ -170,24 +176,25 @@ namespace PX.SM.BoxStorageProvider
 
             BoxFolderCache screenFolderInfo = this.FoldersByScreen.Select(screen.ScreenID);
             BoxUtils.FileFolderInfo folderInfo = null;
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             if (screenFolderInfo != null)
             {
                 //TODO: check if it returns NULL or throws an exception when it doesn't exist. We need to handle
                 //case when use deleted folder on Box (code is below, but if exception is thrown here it will not work)
-                folderInfo = BoxUtils.GetFolderInfo(this.User.Current.AccessToken, this.User.Current.RefreshToken, screenFolderInfo.FolderID).Result;
+                folderInfo = BoxUtils.GetFolderInfo(tokenHandler, screenFolderInfo.FolderID).Result;
             }
 
             if (folderInfo == null)
             {
                 // Folder wasn't found, try finding it by name in the root folder.
-                folderInfo = BoxUtils.FindFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, rootFolder.ID, folderName).Result;
+                folderInfo = BoxUtils.FindFolder(tokenHandler, rootFolder.ID, folderName).Result;
             }
 
             if (folderInfo == null)
             {
                 // Folder doesn't exist at all - create it
-                folderInfo = BoxUtils.CreateFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, folderName, rootFolder.ID).Result;
+                folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, rootFolder.ID).Result;
             }
 
             if (screenFolderInfo == null)
@@ -196,7 +203,7 @@ namespace PX.SM.BoxStorageProvider
                 screenFolderInfo.FolderID = folderInfo.ID;
                 screenFolderInfo.ParentFolderID = folderInfo.ParentFolderID;
                 screenFolderInfo.ScreenID = screen.ScreenID;
-                screenFolderInfo.LastModifiedDateTime = DateTime.MinValue; //To force initial sync
+                screenFolderInfo.LastModifiedDateTime = null; //To force initial sync
                 screenFolderInfo = this.FoldersByScreen.Insert(screenFolderInfo);
             }
 
@@ -214,7 +221,8 @@ namespace PX.SM.BoxStorageProvider
         {
             // Retrieve top-level folder list
             // TODO: we'll have to go one level deeper when support for customizable folder structure will be added
-            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(this.User.Current.AccessToken, this.User.Current.RefreshToken, screenFolderInfo.FolderID, 1).Result;
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, 1).Result;
             foreach(BoxUtils.FileFolderInfo folderInfo in list)
             {
                 BoxFolderCache bfc = this.FoldersByFolderID.Select(folderInfo.ID);
@@ -259,8 +267,10 @@ namespace PX.SM.BoxStorageProvider
 
         public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID)
         {
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+
             //Get list of files contained in the record folder. RecurseDepth=0 will retrieve all subfolders
-            List<BoxUtils.FileFolderInfo> boxFileList = BoxUtils.GetFileList(this.User.Current.AccessToken, this.User.Current.RefreshToken, folderID, 0).Result;
+            List<BoxUtils.FileFolderInfo> boxFileList = BoxUtils.GetFileList(tokenHandler, folderID, 0).Result;
 
             // Remove any files which were deleted in Box and still exist in the record.
             foreach (PXResult<BoxFileCache, UploadFileRevisionNoData, UploadFile, NoteDoc> result in FilesByNoteID.Select(refNoteID))
@@ -391,7 +401,8 @@ namespace PX.SM.BoxStorageProvider
             string rootFolderName = GetRootFolderName();
             if (string.IsNullOrEmpty(rootFolderName)) throw new PXException(Messages.RootFolderNotSetup);
 
-            BoxUtils.FileFolderInfo rootFolder = BoxUtils.FindFolder(this.User.Current.AccessToken, this.User.Current.RefreshToken, "0", rootFolderName).Result;
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+            BoxUtils.FileFolderInfo rootFolder = BoxUtils.FindFolder(tokenHandler, "0", rootFolderName).Result;
             if (rootFolder == null) throw new PXException(Messages.RootFolderNotFound, rootFolderName);
 
             return rootFolder;
