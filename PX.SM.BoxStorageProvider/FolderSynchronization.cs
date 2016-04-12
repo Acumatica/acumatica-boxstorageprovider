@@ -19,10 +19,11 @@ namespace PX.SM.BoxStorageProvider
         private static void Process(List<Screen> list)
         {
             FileHandler graph = PXGraph.CreateInstance<FileHandler>();
+            var userTokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             bool failed = false;
             
-            if (graph.User.Current == null || !PXAccess.IsRoleEnabled(PXAccess.GetAdministratorRole()))
+            if (userTokenHandler.GetCurrentUser() == null || !PXAccess.IsRoleEnabled(PXAccess.GetAdministratorRole()))
             {
                 throw new Exception(Messages.AdminAccountNotSetup);
             }

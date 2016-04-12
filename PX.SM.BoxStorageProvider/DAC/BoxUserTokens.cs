@@ -27,7 +27,7 @@ namespace PX.SM.BoxStorageProvider
         public virtual string RefreshToken { get; set; }
 
         public abstract class refreshTokenDate : IBqlField { }
-        [PXDBDateAndTime]
+        [PXDBDateAndTime(PreserveTime = true, UseSmallDateTime = false, UseTimeZone = false)]
         [PXUIField(DisplayName = "Last Refresh Token", IsReadOnly = true, Visibility = PXUIVisibility.Visible)]
         public virtual DateTime? RefreshTokenDate { get; set; }
 
