@@ -22,8 +22,12 @@ namespace PX.SM.BoxStorageProvider
             var userTokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             bool failed = false;
-            
-            if (userTokenHandler.GetCurrentUser() == null || !PXAccess.IsRoleEnabled(PXAccess.GetAdministratorRole()))
+
+            if (userTokenHandler.GetCurrentUser() == null)
+            {
+                throw new Exception(Messages.BoxUserNotFound);
+            }
+            if (!PXAccess.IsRoleEnabled(PXAccess.GetAdministratorRole()))
             {
                 throw new Exception(Messages.AdminAccountNotSetup);
             }
