@@ -23,15 +23,11 @@ namespace PX.SM.BoxStorageProvider
 
             bool failed = false;
 
-            if (userTokenHandler.GetCurrentUser() == null)
+            if (userTokenHandler.GetCurrentUser() == null || userTokenHandler.GetCurrentUser().AccessToken == null || userTokenHandler.GetCurrentUser().RefreshToken == null)
             {
-                throw new Exception(Messages.BoxUserNotFound);
+                throw new Exception(Messages.BoxUserNotFoundOrTokensExpired);
             }
-            if (!PXAccess.IsRoleEnabled(PXAccess.GetAdministratorRole()))
-            {
-                throw new Exception(Messages.AdminAccountNotSetup);
-            }
-            
+
             var rootFolder = graph.GetRootFolder();
             
             for (int i = 0; i < list.Count; i++)

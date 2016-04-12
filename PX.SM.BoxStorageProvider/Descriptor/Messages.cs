@@ -8,7 +8,6 @@ namespace PX.SM.BoxStorageProvider
         public const string MiscellaneousFilesFolderName = "Miscellaneous Files";
         public const string SynchronizationError = "One or more folders could not be synchronized.";
         public const string BrowseBoxFiles = "Browse Box Files...";
-        public const string AdminAccountNotSetup = "This process can only be run by an administrator. Please ensure that the admin account is setup for Box.com integration";
         public const string RootFolderNotSetup = "The Box.com root folder name is not setup in the file provider settings.";
         public const string RootFolderNotFound = "Failed to locate root folder {0} in this user's home folder.";
         public const string FileNotFoundInBoxFileCache = "No file corresponding to blob handler value {0} was found in the Box file cache.";
@@ -30,6 +29,6 @@ namespace PX.SM.BoxStorageProvider
         public const string GetFileWithNoDataReturnedUIDNull = "GetFileWithNoData for file {0} returned a record with a null UID.";
         public const string UploadFileRevisionMissing = "UploadFileRevision record for file {0} is missing.";
         public const string UploadFileRevisionMissingBlobHandler = "UploadFileRevision record for file {0} has no blob handler GUID.";
-        public const string BoxUserNotFound = "Failed to retrieve user. Please verify that you are authenticated with Box.";
+        public const string BoxUserNotFoundOrTokensExpired = "Failed to retrieve user. Please verify that you are authenticated with Box.";
     }
 }
