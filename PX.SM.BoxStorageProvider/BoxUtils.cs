@@ -1,6 +1,7 @@
 ﻿using Box.V2;
 using Box.V2.Auth;
 using Box.V2.Config;
+using PX.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,6 +25,12 @@ namespace PX.SM.BoxStorageProvider
 
         private static BoxClient GetNewBoxClient(UserTokenHandler tokenHandler)
         {
+            var currentUser = tokenHandler.GetCurrentUser();
+            if(currentUser == null || currentUser.AccessToken == null || currentUser.RefreshToken == null)
+            {
+                throw new PXException(Messages.BoxUserNotFoundOrTokensExpired);
+            }
+
             var config = new BoxConfig(ClientID, ClientSecret, new Uri(RedirectUri));
             OAuthSession session = new OAuthSession(tokenHandler.GetCurrentUser().AccessToken, tokenHandler.GetCurrentUser().RefreshToken, Expiration, "bearer");
 
