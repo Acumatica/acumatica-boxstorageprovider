@@ -44,13 +44,21 @@ namespace PX.SM.BoxStorageProvider
         public virtual void BoxUserTokens_RowSelected(PXCache cache, PXRowSelectedEventArgs e)
         {
             var user = (BoxUserTokens) e.Row;
-            if (string.IsNullOrEmpty(user.AccessToken))
+            //TODO: Replace UserStatus with value from Descriptor\Messages.cs. We may have to call PXLocalizer.Localize() in this specific context;
+            if (string.IsNullOrEmpty(user.BoxUserID))
             {
                 user.UserStatus = "Not configured";
             }
             else
             {
-                user.UserStatus = "Configured";
+                if (string.IsNullOrEmpty(user.AccessToken))
+                {
+                    user.UserStatus = "Expired";
+                }
+                else
+                {
+                    user.UserStatus = "Configured";
+                }
             }
         }
 

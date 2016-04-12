@@ -30,5 +30,6 @@ namespace PX.SM.BoxStorageProvider
         public const string GetFileWithNoDataReturnedUIDNull = "GetFileWithNoData for file {0} returned a record with a null UID.";
         public const string UploadFileRevisionMissing = "UploadFileRevision record for file {0} is missing.";
         public const string UploadFileRevisionMissingBlobHandler = "UploadFileRevision record for file {0} has no blob handler GUID.";
+        public const string BoxUserNotFound = "Failed to retrieve user. Please verify that you are authenticated with Box.";
     }
 }
