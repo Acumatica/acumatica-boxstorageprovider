@@ -7,6 +7,9 @@ using PX.Data;
 using System.IO;
 using System.Web.Compilation;
 using PX.Common;
+using Box.V2.Exceptions;
+using System.Net;
+using Newtonsoft.Json;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -18,7 +21,7 @@ namespace PX.SM.BoxStorageProvider
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.folderID, Equal<Required<BoxFolderCache.folderID>>>> FoldersByFolderID;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByNote;
         public PXSelect<BoxFileCache, Where<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>> FilesByBlobHandler;
-        
+
         // Views needed to synchronize and manage file list
         public PXSelectJoin<BoxFileCache, InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>, InnerJoin<UploadFile, On<UploadFile.fileID, Equal<UploadFileRevisionNoData.fileID>, And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>, InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
         public PXSelect<UploadFile> UploadFiles;
@@ -28,7 +31,7 @@ namespace PX.SM.BoxStorageProvider
         public BoxUtils.FileFolderInfo GetOrCreateBoxFolderForNoteID(Guid refNoteID)
         {
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            var bfc = (BoxFolderCache) this.FoldersByNote.Select(refNoteID);
+            var bfc = (BoxFolderCache)this.FoldersByNote.Select(refNoteID);
             if (bfc == null)
             {
                 // Folder doesn't exist in cache; retrieve it from Box or create it if it doesn't exist.
@@ -44,7 +47,7 @@ namespace PX.SM.BoxStorageProvider
                 // Get screen main folder, foe example "Customers (AR303000)"
                 PXSiteMapNode siteMapNode = PXSiteMap.Provider.FindSiteMapNode(primaryGraphType);
                 if (siteMapNode == null) throw new PXException(Messages.SiteMapNodeForGraphNotFound, primaryGraphType.FullName);
-                var bfcParent = (BoxFolderCache) this.FoldersByScreen.Select(siteMapNode.ScreenID);
+                var bfcParent = (BoxFolderCache)this.FoldersByScreen.Select(siteMapNode.ScreenID);
                 if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
 
                 // Try to find folder; if it doesn't exist, create it.
@@ -57,7 +60,7 @@ namespace PX.SM.BoxStorageProvider
                 }
 
                 // Store the folder info in our local cache for future reference
-                bfc = (BoxFolderCache) this.FoldersByScreen.Cache.CreateInstance();
+                bfc = (BoxFolderCache)this.FoldersByScreen.Cache.CreateInstance();
                 bfc.FolderID = folderInfo.ID;
                 bfc.ParentFolderID = folderInfo.ParentFolderID;
                 bfc.RefNoteID = refNoteID;
@@ -68,13 +71,13 @@ namespace PX.SM.BoxStorageProvider
                 return folderInfo;
             }
             else
-            { 
+            {
                 // Folder was found in BoxFolderCache, retrieve it by ID
                 BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(tokenHandler, bfc.FolderID).Result;
                 return folderInfo;
             }
         }
-        
+
         private string GetFolderNameForEntityRow(object entityRow)
         {
             PXCache cache = this.Caches[entityRow.GetType()];
@@ -129,13 +132,13 @@ namespace PX.SM.BoxStorageProvider
                 }
             }
 
-            var bfc = (BoxFileCache) this.FilesByBlobHandler.Cache.CreateInstance();
+            var bfc = (BoxFileCache)this.FilesByBlobHandler.Cache.CreateInstance();
             bfc.BlobHandler = blobHandlerGuid;
             bfc.FileID = boxFile.ID;
             bfc.ParentFolderID = boxFile.ParentFolderID;
             bfc = this.FilesByBlobHandler.Insert(bfc);
             this.Actions.PressSave();
-            
+
             return blobHandlerGuid;
         }
 
@@ -169,7 +172,7 @@ namespace PX.SM.BoxStorageProvider
 
             return rootFolder;
         }
-        
+
         public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder)
         {
             string folderName = string.Format("{0} ({1})", (object)BoxUtils.CleanFileOrFolderName(screen.Name), (object)screen.ScreenID);
@@ -182,7 +185,16 @@ namespace PX.SM.BoxStorageProvider
             {
                 //TODO: check if it returns NULL or throws an exception when it doesn't exist. We need to handle
                 //case when use deleted folder on Box (code is below, but if exception is thrown here it will not work)
-                folderInfo = BoxUtils.GetFolderInfo(tokenHandler, screenFolderInfo.FolderID).Result;
+                try
+                {
+                    folderInfo = BoxUtils.GetFolderInfo(tokenHandler, screenFolderInfo.FolderID).Result;
+                }
+                catch(AggregateException e) when (e.InnerException is BoxException)
+                {
+                    screenFolderInfo = this.FoldersByScreen.Delete(screenFolderInfo);
+                    this.Actions.PressSave();
+                    throw (new PXException($"{Messages.BoxFolderNotFound} {Environment.NewLine} {Messages.PleaseRunSynchAgain}"));
+                }
             }
 
             if (folderInfo == null)
@@ -223,14 +235,14 @@ namespace PX.SM.BoxStorageProvider
             // TODO: we'll have to go one level deeper when support for customizable folder structure will be added
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, 1).Result;
-            foreach(BoxUtils.FileFolderInfo folderInfo in list)
+            foreach (BoxUtils.FileFolderInfo folderInfo in list)
             {
                 BoxFolderCache bfc = this.FoldersByFolderID.Select(folderInfo.ID);
-                if(bfc == null)
+                if (bfc == null)
                 {
                     // We've never seen this folder; sync it
                     Guid? refNoteID = FindMatchingNoteIDForFolder(screenFolderInfo.ScreenID, folderInfo.Name);
-                    if(refNoteID == null)
+                    if (refNoteID == null)
                     {
                         // User may have created some folder manually with a name not matching to any record, or record
                         // may have been deleted in Acumatica. We can safely ignore it, but let's write to trace.
@@ -246,12 +258,12 @@ namespace PX.SM.BoxStorageProvider
                     bfc = this.FoldersByFolderID.Insert(bfc);
                 }
 
-                if(bfc.LastModifiedDateTime != folderInfo.ModifiedAt)
+                if (bfc.LastModifiedDateTime != folderInfo.ModifiedAt)
                 {
                     //The SaveFile call will trigger a Load() on the BoxBlobStorageProvider which can be skipped
                     PXContext.SetSlot<bool>("BoxDisableLoad", true);
                     try
-                    { 
+                    {
                         RefreshRecordFileList(screenFolderInfo.ScreenID, folderInfo.Name, folderInfo.ID, bfc.RefNoteID);
                         bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
                         this.FoldersByFolderID.Update(bfc);
@@ -340,7 +352,7 @@ namespace PX.SM.BoxStorageProvider
 
         private Guid GetBlobHandlerForFileID(Guid fileID)
         {
-            UploadFileRevisionNoData ufr = (UploadFileRevisionNoData) new PXSelect<UploadFileRevisionNoData,
+            UploadFileRevisionNoData ufr = (UploadFileRevisionNoData)new PXSelect<UploadFileRevisionNoData,
                 Where<UploadFileRevisionNoData.fileID, Equal<Required<UploadFileRevisionNoData.fileID>>>,
                 OrderBy<Desc<UploadFileRevisionNoData.fileRevisionID>>>(this).Select(fileID);
 
@@ -367,22 +379,22 @@ namespace PX.SM.BoxStorageProvider
             var keyValuePairs = GetKeyValuePairsFromKeyValues(graph, primaryViewName, keyValues);
             var view = graph.Views[primaryViewName];
             ScreenUtils.SelectCurrent(view, viewDescription, keyValuePairs);
-            
+
             if (view.Cache.Current == null)
             {
                 return null;
             }
             else
-            { 
+            {
                 return PXNoteAttribute.GetNoteID(view.Cache, view.Cache.Current, EntityHelper.GetNoteField(view.Cache.Current.GetType()));
             }
         }
-        
+
         private KeyValuePair<string, string>[] GetKeyValuePairsFromKeyValues(PXGraph graph, string viewName, string keyValues)
         {
             string[] keyNames = graph.GetKeyNames(viewName);
             string[] keyValuesArray = keyValues.Split(' ');
-            
+
             if (keyNames.Length != keyValuesArray.Length)
                 throw new PXException(Messages.ErrorExtractingKeyValuesFromFolderName, keyValuesArray.Length, keyValues.Length, viewName);
 
@@ -410,7 +422,7 @@ namespace PX.SM.BoxStorageProvider
 
         private string GetRootFolderName()
         {
-            BlobProviderSettings providerSettings = (BlobProviderSettings) PXSelect<BlobProviderSettings, Where<BlobProviderSettings.name, Equal<Required< BlobProviderSettings.name>>>>.Select(this, BoxBlobStorageProvider.RootFolderParam);
+            BlobProviderSettings providerSettings = (BlobProviderSettings)PXSelect<BlobProviderSettings, Where<BlobProviderSettings.name, Equal<Required<BlobProviderSettings.name>>>>.Select(this, BoxBlobStorageProvider.RootFolderParam);
             if (providerSettings == null)
                 return string.Empty;
             return providerSettings.Value;
