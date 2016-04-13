@@ -99,6 +99,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BoxBlobStorageProvider.cs" />
+    <Compile Include="BoxExceptionMessage.cs" />
     <Compile Include="BoxUtils.cs" />
     <Compile Include="DAC\BoxFileCache.cs" />
     <Compile Include="DAC\BoxFolderCache.cs" />
