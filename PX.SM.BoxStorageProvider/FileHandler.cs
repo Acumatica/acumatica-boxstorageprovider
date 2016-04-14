@@ -37,7 +37,7 @@ namespace PX.SM.BoxStorageProvider
                 // Folder doesn't exist in cache; retrieve it from Box or create it if it doesn't exist.
                 EntityHelper entityHelper = new EntityHelper(this);
                 object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
-                Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityHelper.GetEntityRow(new Guid?(refNoteID)), false);
+                Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
 
                 // TODO: Test these error cases to ensure we behave correctly:
                 //  ex: sending e-mail or attaching file to activity could yield which should instead be handled and have file uploaded to Miscellaneous Folder
@@ -50,25 +50,46 @@ namespace PX.SM.BoxStorageProvider
                 var bfcParent = (BoxFolderCache)this.FoldersByScreen.Select(siteMapNode.ScreenID);
                 if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
 
+
                 // Try to find folder; if it doesn't exist, create it.
                 string folderName = GetFolderNameForEntityRow(entityRow);
-                BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, bfcParent.FolderID, folderName).Result;
-                if (folderInfo == null)
+
+                try
                 {
-                    // Folder doesn't exist on Box, create it.
-                    folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID).Result;
+                    BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, bfcParent.FolderID, folderName).Result;
+
+                    if (folderInfo == null)
+                    {
+                        // Folder doesn't exist on Box, create it.
+                        folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID).Result;
+                    }
+
+                    // Store the folder info in our local cache for future reference
+                    bfc = (BoxFolderCache)this.FoldersByScreen.Cache.CreateInstance();
+                    bfc.FolderID = folderInfo.ID;
+                    bfc.ParentFolderID = folderInfo.ParentFolderID;
+                    bfc.RefNoteID = refNoteID;
+                    bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
+                    bfc = this.FoldersByNote.Insert(bfc);
+                    this.Actions.PressSave();
+
+                    return folderInfo;
                 }
+                catch (AggregateException ae)
+                {
+                    ae.Handle((e) => 
+                    {
+                        var boxException = e as BoxException;
+                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            throw (new PXException(string.Format(Messages.BoxFolderNotFoundRunSynchAgain, bfcParent.ScreenID), boxException));
+                        }
 
-                // Store the folder info in our local cache for future reference
-                bfc = (BoxFolderCache)this.FoldersByScreen.Cache.CreateInstance();
-                bfc.FolderID = folderInfo.ID;
-                bfc.ParentFolderID = folderInfo.ParentFolderID;
-                bfc.RefNoteID = refNoteID;
-                bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
-                bfc = this.FoldersByNote.Insert(bfc);
-                this.Actions.PressSave();
+                        throw e;
+                    });
 
-                return folderInfo;
+                    return null;
+                }
             }
             else
             {
@@ -189,11 +210,22 @@ namespace PX.SM.BoxStorageProvider
                 {
                     folderInfo = BoxUtils.GetFolderInfo(tokenHandler, screenFolderInfo.FolderID).Result;
                 }
-                catch(AggregateException e) when (e.InnerException is BoxException)
+                catch (AggregateException ae)
                 {
-                    screenFolderInfo = this.FoldersByScreen.Delete(screenFolderInfo);
-                    this.Actions.PressSave();
-                    throw (new PXException($"{Messages.BoxFolderNotFound} {Environment.NewLine} {Messages.PleaseRunSynchAgain}"));
+                    ae.Handle((e) =>
+                    {
+                        var boxException = e as BoxException;
+                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            screenFolderInfo = this.FoldersByScreen.Delete(screenFolderInfo);
+                            this.Actions.PressSave();
+                            throw (new PXException(string.Format(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID)));
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    });
                 }
             }
 
