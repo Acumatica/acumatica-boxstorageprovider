@@ -31,6 +31,7 @@ namespace PX.SM.BoxStorageProvider
         public const string UploadFileRevisionMissingBlobHandler = "UploadFileRevision record for file {0} has no blob handler GUID.";
         public const string BoxUserNotFoundOrTokensExpired = "Failed to retrieve user. Please verify that you are authenticated with Box.";
         public const string BoxServiceError = "Box service returned the following error : ";
-        public const string BoxFolderNotFoundRunSynchAgain= "Screen folder {0} not found. Please run folder synchronization and try again.";
+        public const string BoxFolderNotFoundRunSynchAgain = "Screen folder ID {0} not found. Please run folder synchronization and try again.";
+        public const string BoxFolderNotFoundTryAgain = "Folder ID {0} not found. Please try again.";
     }
 }

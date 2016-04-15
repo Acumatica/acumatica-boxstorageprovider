@@ -19,7 +19,6 @@ namespace PX.SM.BoxStorageProvider
         public abstract class parentFolderID : IBqlField { }
         [PXDBString(256)]
         [PXUIField(DisplayName = "Box Parent Folder ID")]
-        [PXParent(typeof(Select<BoxFolderCache, Where<BoxFolderCache.folderID, Equal<Current<BoxFileCache.parentFolderID>>>>))]
         public virtual string ParentFolderID { get; set; }
     }
 }

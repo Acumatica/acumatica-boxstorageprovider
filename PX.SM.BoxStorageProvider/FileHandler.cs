@@ -69,7 +69,7 @@ namespace PX.SM.BoxStorageProvider
                     bfc.FolderID = folderInfo.ID;
                     bfc.ParentFolderID = folderInfo.ParentFolderID;
                     bfc.RefNoteID = refNoteID;
-                    bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
+                    bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
                     bfc = this.FoldersByNote.Insert(bfc);
                     this.Actions.PressSave();
 
@@ -77,7 +77,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    ae.Handle((e) => 
+                    ae.Handle((e) =>
                     {
                         var boxException = e as BoxException;
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
@@ -93,9 +93,34 @@ namespace PX.SM.BoxStorageProvider
             }
             else
             {
-                // Folder was found in BoxFolderCache, retrieve it by ID
-                BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(tokenHandler, bfc.FolderID).Result;
-                return folderInfo;
+                try
+                {
+                    // Folder was found in BoxFolderCache, retrieve it by ID
+                    BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(tokenHandler, bfc.FolderID).Result;
+                    return folderInfo;
+                }
+                catch (AggregateException ae)
+                {
+                    ae.Handle((e) =>
+                    {
+                        var boxException = e as BoxException;
+                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            using (new PXConnectionScope())
+                            {
+                                // Delete entry from BoxFolderCache so that it gets created again.
+                                this.FoldersByNote.Delete(bfc);
+                                this.Actions.PressSave();
+
+                                throw new PXException(Messages.BoxFolderNotFoundTryAgain, bfc.FolderID, e);
+                            }
+                        }
+
+                        return false;
+                    });
+
+                    return null;
+                }
             }
         }
 
@@ -204,8 +229,6 @@ namespace PX.SM.BoxStorageProvider
 
             if (screenFolderInfo != null)
             {
-                //TODO: check if it returns NULL or throws an exception when it doesn't exist. We need to handle
-                //case when use deleted folder on Box (code is below, but if exception is thrown here it will not work)
                 try
                 {
                     folderInfo = BoxUtils.GetFolderInfo(tokenHandler, screenFolderInfo.FolderID).Result;
@@ -217,9 +240,10 @@ namespace PX.SM.BoxStorageProvider
                         var boxException = e as BoxException;
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                         {
+                            // Folder no longer exist on Box - it may have been deleted on purpose by the user. Remove it from cache so it is recreated on the next run.
                             screenFolderInfo = this.FoldersByScreen.Delete(screenFolderInfo);
                             this.Actions.PressSave();
-                            throw (new PXException(string.Format(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID)));
+                            throw new PXException(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID);
                         }
                         else
                         {
@@ -282,11 +306,19 @@ namespace PX.SM.BoxStorageProvider
                         continue;
                     }
 
+                    bfc = (BoxFolderCache) this.FoldersByNote.Select(refNoteID);
+                    if (bfc != null)
+                    {
+                        // A folder existed before for this record; clear the previous entry for this refNoteID
+                        this.FoldersByNote.Delete(bfc);
+                    }
+
+                    // Store folder in cache for future reference
                     bfc = (BoxFolderCache)this.FoldersByFolderID.Cache.CreateInstance();
                     bfc.FolderID = folderInfo.ID;
                     bfc.ParentFolderID = folderInfo.ParentFolderID;
                     bfc.RefNoteID = refNoteID;
-                    bfc.LastModifiedDateTime = DateTime.MinValue; //To force initial sync
+                    bfc.LastModifiedDateTime = null; //To force initial sync
                     bfc = this.FoldersByFolderID.Insert(bfc);
                 }
 
