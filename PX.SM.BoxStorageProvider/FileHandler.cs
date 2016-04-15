@@ -39,8 +39,6 @@ namespace PX.SM.BoxStorageProvider
                 object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
                 Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
 
-                // TODO: Test these error cases to ensure we behave correctly:
-                //  ex: sending e-mail or attaching file to activity could yield which should instead be handled and have file uploaded to Miscellaneous Folder
                 if (primaryGraphType == null) throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
                 if (entityRow == null) throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID);
 
@@ -79,6 +77,7 @@ namespace PX.SM.BoxStorageProvider
                 {
                     ae.Handle((e) =>
                     {
+                        PXTrace.WriteError(e);
                         var boxException = e as BoxException;
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                         {
@@ -103,6 +102,7 @@ namespace PX.SM.BoxStorageProvider
                 {
                     ae.Handle((e) =>
                     {
+                        PXTrace.WriteError(e);
                         var boxException = e as BoxException;
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                         {
@@ -137,10 +137,29 @@ namespace PX.SM.BoxStorageProvider
 
         public byte[] DownloadFileFromBox(Guid blobHandler)
         {
-            //TODO: Test what happens if file has been deleted from Box but is still in Acumatica. Needs to show a proper exception.
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
-            return BoxUtils.DownloadFile(tokenHandler, bfc.FileID).Result;
+            try
+            {
+                return BoxUtils.DownloadFile(tokenHandler, bfc.FileID).Result;
+            }
+            catch(AggregateException ae)
+            {
+                ae.Handle((e) => 
+                {
+                    PXTrace.WriteError(e);
+                    var be = e as BoxException;
+                    if(be != null && be.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        
+                        throw new PXException(Messages.BoxFileNotFound, e);
+                    }
+
+                    return false;
+                });
+
+                return new byte[0];
+            }
         }
 
         public void DeleteFileFromBox(Guid blobHandler)
@@ -157,19 +176,28 @@ namespace PX.SM.BoxStorageProvider
             Guid blobHandlerGuid = Guid.NewGuid();
 
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-
-            if (saveContext == null || saveContext.FileInfo == null || !saveContext.FileInfo.NoteID.HasValue)
+            
+            if (saveContext == null || saveContext.FileInfo == null || !saveContext.NoteID.HasValue)
             {
+                var fileName = string.Empty;
+                if (saveContext?.FileInfo?.Name == null)
+                {
+                    fileName = blobHandlerGuid.ToString();
+                }
+                else
+                {
+                    fileName = BoxUtils.CleanFileOrFolderName(saveContext.FileInfo.Name);
+                    fileName = $"{Path.GetFileNameWithoutExtension(fileName)} ({blobHandlerGuid.ToString()}){Path.GetExtension(fileName)}";
+                }
+
                 //We don't know on which screen this file belongs. We'll have to save it in miscellaneous files folder.
                 BoxUtils.FileFolderInfo boxFolder = GetMiscellaneousFolder();
-                boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, blobHandlerGuid.ToString(), data).Result;
+                boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, fileName, data).Result;
             }
             else
             {
+                var fileName = BoxUtils.CleanFileOrFolderName(Path.GetFileName(saveContext.FileInfo.Name));
                 BoxUtils.FileFolderInfo boxFolder = GetOrCreateBoxFolderForNoteID(saveContext.NoteID.Value);
-                string fileName = BoxUtils.CleanFileOrFolderName(Path.GetFileName(saveContext.FileInfo.Name));
-
-                //TODO: Handle file conflicts - for the miscellaneous folder in some cases and we need to handle potential conflicts
                 boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, fileName, data).Result;
 
                 if (!String.IsNullOrEmpty(saveContext.FileInfo.Comment))
@@ -193,6 +221,7 @@ namespace PX.SM.BoxStorageProvider
             Guid blobHandler = GetBlobHandlerForFileID(fileID);
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+
             BoxUtils.FileFolderInfo fileInfo = BoxUtils.GetFileInfo(tokenHandler, bfc.FileID).Result;
             if (fileInfo == null) throw new PXException(Messages.FileNotFoundInBox, bfc.FileID);
 
@@ -208,15 +237,46 @@ namespace PX.SM.BoxStorageProvider
 
         public BoxUtils.FileFolderInfo GetMiscellaneousFolder()
         {
-            var bfc = FoldersByScreen.Select(MiscellaneousFolderScreenId);
-            string rootFolderName = GetRootFolderName();
-            if (string.IsNullOrEmpty(rootFolderName)) throw new PXException(Messages.RootFolderNotSetup);
+            var bfc = (BoxFolderCache)FoldersByScreen.Select(MiscellaneousFolderScreenId);
+            if (bfc == null)
+            {
+                throw new PXException(Messages.MiscFolderNotFoundRunSynchAgain);
+            }
+            else
+            {
+                try
+                {
+                    // Folder was found in BoxFolderCache, retrieve it by ID
+                    var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+                    BoxUtils.FileFolderInfo folderInfo = BoxUtils.GetFolderInfo(tokenHandler, bfc.FolderID).Result;
+                    return folderInfo;
+                }
+                catch (AggregateException ae)
+                {
+                    ae.Handle((e) =>
+                    {
+                        PXTrace.WriteError(e);
+                        var boxException = e as BoxException;
+                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            using (new PXConnectionScope())
+                            {
+                                // Delete entry from BoxFolderCache so that it gets created again.
+                                this.FoldersByScreen.Delete(bfc);
+                                this.Actions.PressSave();
 
-            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            BoxUtils.FileFolderInfo rootFolder = BoxUtils.FindFolder(tokenHandler, "0", rootFolderName).Result;
-            if (rootFolder == null) throw new PXException(Messages.RootFolderNotFound, rootFolderName);
+                                throw new PXException(Messages.MiscFolderNotFoundRunSynchAgain, bfc.FolderID, e);
+                            }
+                        }
 
-            return rootFolder;
+                        return false;
+                    });
+
+                    return null;
+                }
+
+                
+            }
         }
 
         public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder)
@@ -237,6 +297,7 @@ namespace PX.SM.BoxStorageProvider
                 {
                     ae.Handle((e) =>
                     {
+                        PXTrace.WriteError(e);
                         var boxException = e as BoxException;
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                         {

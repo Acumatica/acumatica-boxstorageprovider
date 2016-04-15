@@ -33,5 +33,10 @@ namespace PX.SM.BoxStorageProvider
         public const string BoxServiceError = "Box service returned the following error : ";
         public const string BoxFolderNotFoundRunSynchAgain = "Screen folder ID {0} not found. Please run folder synchronization and try again.";
         public const string BoxFolderNotFoundTryAgain = "Folder ID {0} not found. Please try again.";
+        public const string MiscFolderNotFoundRunSynchAgain = "Miscellaneous Files Folder not found. Please run folder synchronization and try again.";
+
+        public const string Expired = "Expired";
+        public const string Configured = "Configured";
+        public const string NotConfigured = "Not configured";
     }
 }
