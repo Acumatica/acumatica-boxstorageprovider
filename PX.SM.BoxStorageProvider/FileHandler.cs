@@ -10,6 +10,7 @@ using PX.Common;
 using Box.V2.Exceptions;
 using System.Net;
 using Newtonsoft.Json;
+using System.Reflection;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -58,8 +59,9 @@ namespace PX.SM.BoxStorageProvider
 
                     if (folderInfo == null)
                     {
+                        var description = GetFolderDescription(this, siteMapNode.ScreenID, entityRow);
                         // Folder doesn't exist on Box, create it.
-                        folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID).Result;
+                        folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID, description).Result;
                     }
 
                     // Store the folder info in our local cache for future reference
@@ -143,15 +145,15 @@ namespace PX.SM.BoxStorageProvider
             {
                 return BoxUtils.DownloadFile(tokenHandler, bfc.FileID).Result;
             }
-            catch(AggregateException ae)
+            catch (AggregateException ae)
             {
-                ae.Handle((e) => 
+                ae.Handle((e) =>
                 {
                     PXTrace.WriteError(e);
                     var be = e as BoxException;
-                    if(be != null && be.StatusCode == HttpStatusCode.NotFound)
+                    if (be != null && be.StatusCode == HttpStatusCode.NotFound)
                     {
-                        
+
                         throw new PXException(Messages.BoxFileNotFound, e);
                     }
 
@@ -176,7 +178,7 @@ namespace PX.SM.BoxStorageProvider
             Guid blobHandlerGuid = Guid.NewGuid();
 
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            
+
             if (saveContext == null || saveContext.FileInfo == null || !saveContext.NoteID.HasValue)
             {
                 var fileName = string.Empty;
@@ -275,7 +277,7 @@ namespace PX.SM.BoxStorageProvider
                     return null;
                 }
 
-                
+
             }
         }
 
@@ -323,7 +325,8 @@ namespace PX.SM.BoxStorageProvider
             if (folderInfo == null)
             {
                 // Folder doesn't exist at all - create it
-                folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, rootFolder.ID).Result;
+                var description = GetFolderDescription(this, screen.ScreenID, null);
+                folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, rootFolder.ID, description).Result;
             }
 
             if (screenFolderInfo == null)
@@ -367,7 +370,7 @@ namespace PX.SM.BoxStorageProvider
                         continue;
                     }
 
-                    bfc = (BoxFolderCache) this.FoldersByNote.Select(refNoteID);
+                    bfc = (BoxFolderCache)this.FoldersByNote.Select(refNoteID);
                     if (bfc != null)
                     {
                         // A folder existed before for this record; clear the previous entry for this refNoteID
@@ -495,9 +498,6 @@ namespace PX.SM.BoxStorageProvider
             string primaryViewName = PXPageIndexingService.GetPrimaryView(graphType);
             if (String.IsNullOrEmpty(primaryViewName)) throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, graphType);
 
-            // TODO: Verify if this is a problem, normally this is obtained from PXSiteMap.ScreenInfo
-            // but this info is slow to load and not always available??? It is only used with ScreenUtils.SelectCurrent
-            // for this line: if (primaryViewInfo.Parameters.Any(p => p.Name == pair.Key)) parameters.Add(val);
             var viewDescription = new Data.Description.PXViewDescription(primaryViewName);
 
             var graph = PXGraph.CreateInstance(PXBuildManager.GetType(graphType, true));
@@ -551,6 +551,24 @@ namespace PX.SM.BoxStorageProvider
             if (providerSettings == null)
                 return string.Empty;
             return providerSettings.Value;
+        }
+
+        private string GetFolderDescription(PXGraph graph, string screenID, object row)
+        {
+            PXCache cache = graph.Caches[row.GetType()];
+            if (cache == null) return "";
+
+            foreach (PropertyInfo prop in cache.GetItemType().GetProperties())
+            {
+                if (prop.IsDefined(typeof(PXSearchableAttribute), true))
+                {
+                    var attribute = prop.GetCustomAttribute(typeof(PXSearchableAttribute)) as PXSearchableAttribute;
+                    var rec = attribute.BuildRecordInfo(cache, row);
+                    return new string($"{rec.Title}{Environment.NewLine}{rec.Line1}".Take(255).ToArray());
+                }
+            }
+
+            return string.Empty;
         }
     }
 }
