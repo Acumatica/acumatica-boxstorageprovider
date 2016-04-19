@@ -1,6 +1,7 @@
 ﻿using Box.V2;
 using Box.V2.Auth;
 using Box.V2.Config;
+using Box.V2.Models;
 using PX.Data;
 using System;
 using System.Collections.Generic;
@@ -69,14 +70,39 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<FileFolderInfo> CreateFolder(UserTokenHandler tokenHandler, string name, string parentFolderID)
         {
             var client = GetNewBoxClient(tokenHandler);
+            return await BoxUtils.CreateFolder(client, tokenHandler, name, parentFolderID);
+        }
+
+        private static async Task<FileFolderInfo> CreateFolder(BoxClient client, UserTokenHandler tokenHandler, string name, string parentFolderID)
+        {
             var folderRequest = new Box.V2.Models.BoxFolderRequest { Name = name, Parent = new Box.V2.Models.BoxRequestEntity { Id = parentFolderID } };
-            Box.V2.Models.BoxFolder folder = await client.FoldersManager.CreateAsync(folderRequest, new List<string> { Box.V2.Models.BoxFolder.FieldName, Box.V2.Models.BoxFolder.FieldModifiedAt } );
+            Box.V2.Models.BoxFolder folder = await client.FoldersManager.CreateAsync(folderRequest, new List<string> { Box.V2.Models.BoxFolder.FieldName, Box.V2.Models.BoxFolder.FieldModifiedAt });
             return new FileFolderInfo
             {
                 ID = folder.Id,
                 Name = folder.Name,
                 ParentFolderID = parentFolderID,
                 ModifiedAt = folder.ModifiedAt
+            };
+        }
+
+        public static async Task<FileFolderInfo> CreateFolder(UserTokenHandler tokenHandler, string name, string parentFolderID, string description)
+        {
+            
+            var client = GetNewBoxClient(tokenHandler);
+            FileFolderInfo folderInfo = await CreateFolder(client, tokenHandler, name, parentFolderID);
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                var folderRequest = new Box.V2.Models.BoxFolderRequest { Id = folderInfo.ID, Description = description };
+                BoxFolder folder = await client.FoldersManager.UpdateInformationAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldParent, BoxItem.FieldModifiedAt });
+            }
+
+            return new FileFolderInfo
+            {
+                ID = folderInfo.ID,
+                Name = folderInfo.Name,
+                ParentFolderID = folderInfo.ParentFolderID,
+                ModifiedAt = folderInfo.ModifiedAt
             };
         }
 
