@@ -20,6 +20,7 @@ namespace PX.SM.BoxStorageProvider
 
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.screenID, Equal<Required<BoxFolderCache.screenID>>>> FoldersByScreen;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.folderID, Equal<Required<BoxFolderCache.folderID>>>> FoldersByFolderID;
+        public PXSelect<BoxFolderCache, Where<BoxFolderCache.parentFolderID, Equal<Required<BoxFolderCache.parentFolderID>>>> FoldersByParentFolderID;
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByNote;
         public PXSelect<BoxFileCache, Where<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>> FilesByBlobHandler;
 
@@ -59,7 +60,7 @@ namespace PX.SM.BoxStorageProvider
 
                     if (folderInfo == null)
                     {
-                        var description = GetFolderDescription(this, siteMapNode.ScreenID, entityRow);
+                        var description = GetFolderDescription(siteMapNode.ScreenID, entityRow);
                         // Folder doesn't exist on Box, create it.
                         folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID, description).Result;
                     }
@@ -281,7 +282,7 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder)
+        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder, bool forceSync = false)
         {
             string folderName = string.Format("{0} ({1})", (object)BoxUtils.CleanFileOrFolderName(screen.Name), (object)screen.ScreenID);
 
@@ -325,8 +326,7 @@ namespace PX.SM.BoxStorageProvider
             if (folderInfo == null)
             {
                 // Folder doesn't exist at all - create it
-                var description = GetFolderDescription(this, screen.ScreenID, null);
-                folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, rootFolder.ID, description).Result;
+                folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, rootFolder.ID).Result;
             }
 
             if (screenFolderInfo == null)
@@ -340,12 +340,29 @@ namespace PX.SM.BoxStorageProvider
             }
 
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
-            if (screen.ScreenID != FileHandler.MiscellaneousFolderScreenId && screenFolderInfo.LastModifiedDateTime != folderInfo.ModifiedAt)
+            if (screen.ScreenID != FileHandler.MiscellaneousFolderScreenId && (forceSync || screenFolderInfo.LastModifiedDateTime != folderInfo.ModifiedAt))
             {
                 SynchronizeFolderContentsWithScreen(screenFolderInfo);
                 screenFolderInfo.LastModifiedDateTime = folderInfo.ModifiedAt;
                 this.FoldersByScreen.Update(screenFolderInfo);
                 this.Actions.PressSave();
+            }
+        }
+
+        public void UpdateFolderDescriptions(Screen screen)
+        {
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+            EntityHelper entityHelper = new EntityHelper(this);
+
+            BoxFolderCache screenFolderInfo = this.FoldersByScreen.Select(screen.ScreenID);
+            foreach (BoxFolderCache boxFolderCache in this.FoldersByParentFolderID.Select(screenFolderInfo.FolderID))
+            {
+                object row = entityHelper.GetEntityRow(boxFolderCache.RefNoteID);
+                if (row != null)
+                {
+                    var description = GetFolderDescription(screen.ScreenID, row);
+                    BoxUtils.UpdateFolderDescription(tokenHandler, boxFolderCache.FolderID, description).Wait();
+                }
             }
         }
 
@@ -553,9 +570,9 @@ namespace PX.SM.BoxStorageProvider
             return providerSettings.Value;
         }
 
-        private string GetFolderDescription(PXGraph graph, string screenID, object row)
+        public string GetFolderDescription(string screenID, object row)
         {
-            PXCache cache = graph.Caches[row.GetType()];
+            PXCache cache = this.Caches[row.GetType()];
             if (cache == null) return "";
 
             foreach (PropertyInfo prop in cache.GetItemType().GetProperties())
