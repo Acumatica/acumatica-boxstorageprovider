@@ -182,7 +182,7 @@ namespace PX.SM.BoxStorageProvider
             return memoryStream.ToArray();
         }
 
-        public static async void DeleteFile(UserTokenHandler tokenHandler, string fileID)
+        public static async Task DeleteFile(UserTokenHandler tokenHandler, string fileID)
         {
             var client = GetNewBoxClient(tokenHandler);
             await client.FilesManager.DeleteAsync(fileID);
