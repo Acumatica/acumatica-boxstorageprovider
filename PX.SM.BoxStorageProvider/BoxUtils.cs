@@ -19,6 +19,12 @@ namespace PX.SM.BoxStorageProvider
         private const string ClientSecret = "9wrzqjJGL8Te0YxyJyCf0RPrSmvIufGk";
         private const string RedirectUri = "https://acumatica.velixo.com/Box";
 
+        public enum RecursiveDepth
+        {
+            Unlimited = 0,
+            NoDepth = 1,
+        }
+
         //System will do paging if folder contains more than 1000 files
         private const int FolderItemsCollectionLimit = 1000;
 
@@ -191,13 +197,13 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<List<FileFolderInfo>> GetFileList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFileListInternal(client, folderID, 0, recurseDepth, 0, String.Empty);
+            return await GetFileListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, String.Empty);
         }
 
         public static async Task<List<FileFolderInfo>> GetFolderList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFolderListInternal(client, folderID, 0, recurseDepth, 0, String.Empty);
+            return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, String.Empty);
         }
 
         public static async Task<FileFolderInfo> FindFolder(UserTokenHandler tokenHandler, string parentFolderID, string name)
