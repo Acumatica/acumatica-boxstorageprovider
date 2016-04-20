@@ -388,7 +388,7 @@ namespace PX.SM.BoxStorageProvider
             // Retrieve top-level folder list
             // TODO: we'll have to go one level deeper when support for customizable folder structure will be added
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, 1).Result;
+            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, (int)BoxUtils.RecursiveDepth.NoDepth).Result;
             foreach (BoxUtils.FileFolderInfo folderInfo in list)
             {
                 BoxFolderCache bfc = this.FoldersByFolderID.Select(folderInfo.ID);
@@ -444,7 +444,7 @@ namespace PX.SM.BoxStorageProvider
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             //Get list of files contained in the record folder. RecurseDepth=0 will retrieve all subfolders
-            List<BoxUtils.FileFolderInfo> boxFileList = BoxUtils.GetFileList(tokenHandler, folderID, 0).Result;
+            List<BoxUtils.FileFolderInfo> boxFileList = BoxUtils.GetFileList(tokenHandler, folderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
 
             // Remove any files which were deleted in Box and still exist in the record.
             foreach (PXResult<BoxFileCache, UploadFileRevisionNoData, UploadFile, NoteDoc> result in FilesByNoteID.Select(refNoteID))

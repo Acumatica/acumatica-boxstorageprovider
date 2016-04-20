@@ -53,7 +53,7 @@ namespace PX.SM.BoxStorageProvider
                 try
                 {
                     //TODO: New checkbox for force folder sync is needed
-                    graph.SynchronizeScreen(list[i], rootFolder, false);
+                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder);
                     if (filter.IsForceUpdatingFolderDescription)
                     {
                         graph.UpdateFolderDescriptions(list[i]);
