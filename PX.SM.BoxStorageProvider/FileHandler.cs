@@ -167,10 +167,27 @@ namespace PX.SM.BoxStorageProvider
 
         public void DeleteFileFromBox(Guid blobHandler)
         {
-            //TODO: Test what happens if file has been deleted from Box but is still in Acumatica. Needs to show a proper exception.
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             BoxFileCache bfc = GetFileInfoFromCache(blobHandler);
-            BoxUtils.DeleteFile(tokenHandler, bfc.FileID);
+
+            try
+            {
+                BoxUtils.DeleteFile(tokenHandler, bfc.FileID).Wait();
+            }
+            catch (AggregateException ae)
+            {
+                ae.Handle((e) =>
+                {
+                    PXTrace.WriteError(e);
+                    var boxException = e as BoxException;
+                    if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        throw new PXException(Messages.FileNotFoundInBox, bfc.FileID, e);
+                    }
+
+                    return false;
+                });
+            }
         }
 
         public Guid SaveFileToBoxAndUpdateFileCache(byte[] data, PXBlobStorageContext saveContext)
