@@ -96,7 +96,7 @@ namespace PX.SM.BoxStorageProvider
         {
             var client = GetNewBoxClient(tokenHandler);
             FileFolderInfo folderInfo = await CreateFolder(client, tokenHandler, name, parentFolderID);
-            folderInfo = await UpdateFolderDescription(client, tokenHandler, folderInfo.ID, description);
+            UpdateFolderDescription(client, tokenHandler, folderInfo.ID, description).Wait();
 
             return new FileFolderInfo
             {
