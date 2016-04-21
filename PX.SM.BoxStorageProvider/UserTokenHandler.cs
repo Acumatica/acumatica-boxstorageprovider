@@ -29,8 +29,8 @@ namespace PX.SM.BoxStorageProvider
                 currentUser.AccessToken = e.Session.AccessToken;
                 currentUser.RefreshToken = e.Session.RefreshToken;
                 currentUser.RefreshTokenDate = PXTimeZoneInfo.Now;
-                this.Caches[typeof(BoxUserTokens)].Update(currentUser);
-                this.Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
+                Caches[typeof(BoxUserTokens)].Update(currentUser);
+                Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
             }
         }
 
@@ -46,8 +46,8 @@ namespace PX.SM.BoxStorageProvider
                     currentUser = PXCache<BoxUserTokens­>.CreateCopy(currentUser);
                     currentUser.AccessToken = null;
                     currentUser.RefreshToken = null;
-                    this.Caches[typeof(BoxUserTokens)].Update(currentUser);
-                    this.Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
+                    Caches[typeof(BoxUserTokens)].Update(currentUser);
+                    Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
                 }
 
             }
