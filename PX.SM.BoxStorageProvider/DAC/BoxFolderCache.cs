@@ -14,6 +14,10 @@ namespace PX.SM.BoxStorageProvider
         [PXDBString(256)]
         public virtual string ParentFolderID { get; set; }
 
+        public abstract class activityFolderID : IBqlField { }
+        [PXDBString(256)]
+        public virtual string ActivityFolderID { get; set; }
+
         public abstract class screenID : IBqlField { }
         [PXDBString(8, IsUnicode = false)]
         public virtual string ScreenID { get; set; }

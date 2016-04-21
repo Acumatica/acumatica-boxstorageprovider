@@ -33,7 +33,7 @@ namespace PX.SM.BoxStorageProvider
         public BoxUtils.FileFolderInfo GetOrCreateBoxFolderForNoteID(Guid refNoteID)
         {
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            var bfc = (BoxFolderCache)this.FoldersByNote.Select(refNoteID);
+            var bfc = (BoxFolderCache)FoldersByNote.Select(refNoteID);
             if (bfc == null)
             {
                 // Folder doesn't exist in cache; retrieve it from Box or create it if it doesn't exist.
@@ -44,31 +44,72 @@ namespace PX.SM.BoxStorageProvider
                 if (primaryGraphType == null) throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
                 if (entityRow == null) throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID);
 
+                object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
                 //Save an activity related file into the record's activity folder
-                if (entityRow.GetType().Name == "EPActivity")
+                if (entityRow.GetType().FullName == "PX.Objects.CR.EPActivity" && activityRefNoteID != null)
                 {
-                    var activityRefNoteID = Guid.Parse(entityRow.GetType().GetProperty("RefNoteID").GetValue(entityRow).ToString());
+                    var activityRefNoteGuid = Guid.Parse(activityRefNoteID.ToString());
 
                     //Get or create record folder
-                    BoxUtils.FileFolderInfo recordFolderInfo = GetOrCreateBoxFolderForNoteID(activityRefNoteID);
+                    BoxUtils.FileFolderInfo recordFolderInfo = GetOrCreateBoxFolderForNoteID(activityRefNoteGuid);
                     BoxFolderCache recordFolderCache = FoldersByFolderID.Select(recordFolderInfo.ID);
 
                     //Get/Create Activities folder 
-                    BoxUtils.FileFolderInfo activityFolderInfo = CreateFolder(tokenHandler, recordFolderCache, null, null, "Activities");
-                    BoxFolderCache activityFolderCache = FoldersByFolderID.Select(activityFolderInfo.ID);
+                    BoxUtils.FileFolderInfo activityFolderInfo = null;
+                    if (string.IsNullOrEmpty(recordFolderCache.ActivityFolderID))
+                    {
+                        // Create Actities folder and update cache for future reference.
+                        activityFolderInfo = CreateFolder(tokenHandler, recordFolderCache.FolderID, null, null, PXLocalizer.Localize(Messages.ActivitiesFolderName));
+                        recordFolderCache.ActivityFolderID = activityFolderInfo.ID;
+                        FoldersByFolderID.Update(recordFolderCache);
+                        Actions.PressSave();
+                    }
+                    else
+                    {
+                        try
+                        {
+                            // Folder was found in BoxFolderCache, retrieve it by ID
+                            activityFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, recordFolderCache.ActivityFolderID).Result;
+                        }
+                        catch (AggregateException ae)
+                        {
+                            ae.Handle((e) =>
+                            {
+                                PXTrace.WriteError(e);
+                                var boxException = e as BoxException;
+                                if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                                {
+                                    using (new PXConnectionScope())
+                                    {
+                                        // Delete entry from BoxFolderCache so that it gets created again.
+                                        recordFolderCache.ActivityFolderID = null;
+                                        FoldersByNote.Update(recordFolderCache);
+                                        Actions.PressSave();
+
+                                        throw new PXException(Messages.BoxFolderNotFoundTryAgain, recordFolderCache.FolderID, e);
+                                    }
+                                }
+
+                                return false;
+                            });
+
+                            return null;
+                        }
+                    }
 
                     //Get/Create activityRecord folder
-                    return CreateFolderForEntity(tokenHandler, activityFolderCache, entityRow, refNoteID);
+                    System.Diagnostics.Debug.Assert(activityFolderInfo.ID == recordFolderCache.ActivityFolderID);
+                    return CreateFolderForEntity(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID);
                 }
                 else
                 {
                     // Create folder from screenID, for example "Customers (AR303000)"
                     PXSiteMapNode siteMapNode = PXSiteMap.Provider.FindSiteMapNode(primaryGraphType);
                     if (siteMapNode == null) throw new PXException(Messages.SiteMapNodeForGraphNotFound, primaryGraphType.FullName);
-                    var bfcParent = (BoxFolderCache)this.FoldersByScreen.Select(siteMapNode.ScreenID);
+                    var bfcParent = (BoxFolderCache)FoldersByScreen.Select(siteMapNode.ScreenID);
                     if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
 
-                    return CreateFolderForEntity(tokenHandler, bfcParent, entityRow, refNoteID);
+                    return CreateFolderForEntity(tokenHandler, bfcParent.FolderID, entityRow, refNoteID);
                 }
             }
             else
@@ -90,8 +131,8 @@ namespace PX.SM.BoxStorageProvider
                             using (new PXConnectionScope())
                             {
                                 // Delete entry from BoxFolderCache so that it gets created again.
-                                this.FoldersByNote.Delete(bfc);
-                                this.Actions.PressSave();
+                                FoldersByNote.Delete(bfc);
+                                Actions.PressSave();
 
                                 throw new PXException(Messages.BoxFolderNotFoundTryAgain, bfc.FolderID, e);
                             }
@@ -105,34 +146,34 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        private BoxUtils.FileFolderInfo CreateFolderForEntity(UserTokenHandler tokenHandler, BoxFolderCache bfcParent, object entityRow, Guid refNoteID)
+        private BoxUtils.FileFolderInfo CreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
         {
             // Try to find folder; if it doesn't exist, create it.
             string folderName = GetFolderNameForEntityRow(entityRow);
-            return CreateFolder(tokenHandler, bfcParent, entityRow, refNoteID, folderName);
+            return CreateFolder(tokenHandler, parentFolderID, entityRow, refNoteID, folderName);
         }
 
-        private BoxUtils.FileFolderInfo CreateFolder(UserTokenHandler tokenHandler, BoxFolderCache bfcParent, object entityRow, Guid? refNoteID, string folderName)
+        private BoxUtils.FileFolderInfo CreateFolder(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid? refNoteID, string folderName)
         {
             try
             {
-                BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, bfcParent.FolderID, folderName).Result;
+                BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, folderName).Result;
 
                 if (folderInfo == null)
                 {
                     // Folder doesn't exist on Box, create it.
                     var description = entityRow != null ? GetFolderDescriptionForEntityRow(entityRow) : string.Empty;
-                    folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, bfcParent.FolderID, description).Result;
+                    folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, parentFolderID, description).Result;
                 }
 
                 // Store the folder info in our local cache for future reference
-                BoxFolderCache bfc = (BoxFolderCache)this.FoldersByScreen.Cache.CreateInstance();
+                BoxFolderCache bfc = (BoxFolderCache)FoldersByScreen.Cache.CreateInstance();
                 bfc.FolderID = folderInfo.ID;
                 bfc.ParentFolderID = folderInfo.ParentFolderID;
                 bfc.RefNoteID = refNoteID;
                 bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
-                bfc = this.FoldersByNote.Update(bfc);
-                this.Actions.PressSave();
+                bfc = FoldersByNote.Insert(bfc);
+                Actions.PressSave();
 
                 return folderInfo;
             }
@@ -144,7 +185,7 @@ namespace PX.SM.BoxStorageProvider
                     var boxException = e as BoxException;
                     if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                     {
-                        throw (new PXException(string.Format(Messages.BoxFolderNotFoundRunSynchAgain, bfcParent.ScreenID), boxException));
+                        throw (new PXException(string.Format(Messages.BoxFolderNotFoundTryAgain, parentFolderID), boxException));
                     }
 
                     throw e;
@@ -156,13 +197,13 @@ namespace PX.SM.BoxStorageProvider
 
         private string GetFolderNameForEntityRow(object entityRow)
         {
-            PXCache cache = this.Caches[entityRow.GetType()];
+            PXCache cache = Caches[entityRow.GetType()];
             string[] keyValues = new string[cache.BqlKeys.Count];
             for (int i = 0; i < cache.BqlKeys.Count; i++)
             {
                 keyValues[i] = cache.GetValue(entityRow, cache.BqlKeys[i].Name).ToString();
             }
-            return BoxUtils.CleanFileOrFolderName(String.Join(" ", keyValues));
+            return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
         }
 
         public byte[] DownloadFileFromBox(Guid blobHandler)
@@ -247,18 +288,18 @@ namespace PX.SM.BoxStorageProvider
                 BoxUtils.FileFolderInfo boxFolder = GetOrCreateBoxFolderForNoteID(saveContext.NoteID.Value);
                 boxFile = BoxUtils.UploadFile(tokenHandler, boxFolder.ID, fileName, data).Result;
 
-                if (!String.IsNullOrEmpty(saveContext.FileInfo.Comment))
+                if (!string.IsNullOrEmpty(saveContext.FileInfo.Comment))
                 {
                     BoxUtils.SetFileDescription(tokenHandler, boxFile.ID, saveContext.FileInfo.Comment).Wait();
                 }
             }
 
-            var bfc = (BoxFileCache)this.FilesByBlobHandler.Cache.CreateInstance();
+            var bfc = (BoxFileCache)FilesByBlobHandler.Cache.CreateInstance();
             bfc.BlobHandler = blobHandlerGuid;
             bfc.FileID = boxFile.ID;
             bfc.ParentFolderID = boxFile.ParentFolderID;
-            bfc = this.FilesByBlobHandler.Insert(bfc);
-            this.Actions.PressSave();
+            bfc = FilesByBlobHandler.Insert(bfc);
+            Actions.PressSave();
 
             return blobHandlerGuid;
         }
@@ -309,8 +350,8 @@ namespace PX.SM.BoxStorageProvider
                             using (new PXConnectionScope())
                             {
                                 // Delete entry from BoxFolderCache so that it gets created again.
-                                this.FoldersByScreen.Delete(bfc);
-                                this.Actions.PressSave();
+                                FoldersByScreen.Delete(bfc);
+                                Actions.PressSave();
 
                                 throw new PXException(Messages.MiscFolderNotFoundRunSynchAgain, bfc.FolderID, e);
                             }
@@ -330,7 +371,7 @@ namespace PX.SM.BoxStorageProvider
         {
             string folderName = string.Format("{0} ({1})", (object)BoxUtils.CleanFileOrFolderName(screen.Name), (object)screen.ScreenID);
 
-            BoxFolderCache screenFolderInfo = this.FoldersByScreen.Select(screen.ScreenID);
+            BoxFolderCache screenFolderInfo = FoldersByScreen.Select(screen.ScreenID);
             BoxUtils.FileFolderInfo folderInfo = null;
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
@@ -349,8 +390,8 @@ namespace PX.SM.BoxStorageProvider
                         if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                         {
                             // Folder no longer exist on Box - it may have been deleted on purpose by the user. Remove it from cache so it is recreated on the next run.
-                            screenFolderInfo = this.FoldersByScreen.Delete(screenFolderInfo);
-                            this.Actions.PressSave();
+                            screenFolderInfo = FoldersByScreen.Delete(screenFolderInfo);
+                            Actions.PressSave();
                             throw new PXException(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID);
                         }
                         else
@@ -375,12 +416,12 @@ namespace PX.SM.BoxStorageProvider
 
             if (screenFolderInfo == null)
             {
-                screenFolderInfo = (BoxFolderCache)this.FoldersByScreen.Cache.CreateInstance();
+                screenFolderInfo = (BoxFolderCache)FoldersByScreen.Cache.CreateInstance();
                 screenFolderInfo.FolderID = folderInfo.ID;
                 screenFolderInfo.ParentFolderID = folderInfo.ParentFolderID;
                 screenFolderInfo.ScreenID = screen.ScreenID;
                 screenFolderInfo.LastModifiedDateTime = null; //To force initial sync
-                screenFolderInfo = this.FoldersByScreen.Insert(screenFolderInfo);
+                screenFolderInfo = FoldersByScreen.Insert(screenFolderInfo);
             }
 
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
@@ -388,8 +429,8 @@ namespace PX.SM.BoxStorageProvider
             {
                 SynchronizeFolderContentsWithScreen(screenFolderInfo);
                 screenFolderInfo.LastModifiedDateTime = folderInfo.ModifiedAt;
-                this.FoldersByScreen.Update(screenFolderInfo);
-                this.Actions.PressSave();
+                FoldersByScreen.Update(screenFolderInfo);
+                Actions.PressSave();
             }
         }
 
@@ -398,8 +439,8 @@ namespace PX.SM.BoxStorageProvider
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             EntityHelper entityHelper = new EntityHelper(this);
 
-            BoxFolderCache screenFolderInfo = this.FoldersByScreen.Select(screen.ScreenID);
-            foreach (BoxFolderCache boxFolderCache in this.FoldersByParentFolderID.Select(screenFolderInfo.FolderID))
+            BoxFolderCache screenFolderInfo = FoldersByScreen.Select(screen.ScreenID);
+            foreach (BoxFolderCache boxFolderCache in FoldersByParentFolderID.Select(screenFolderInfo.FolderID))
             {
                 object row = entityHelper.GetEntityRow(boxFolderCache.RefNoteID);
                 if (row != null)
@@ -418,7 +459,7 @@ namespace PX.SM.BoxStorageProvider
             List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, (int)BoxUtils.RecursiveDepth.NoDepth).Result;
             foreach (BoxUtils.FileFolderInfo folderInfo in list)
             {
-                BoxFolderCache bfc = this.FoldersByFolderID.Select(folderInfo.ID);
+                BoxFolderCache bfc = FoldersByFolderID.Select(folderInfo.ID);
                 if (bfc == null)
                 {
                     // We've never seen this folder; sync it
@@ -427,24 +468,24 @@ namespace PX.SM.BoxStorageProvider
                     {
                         // User may have created some folder manually with a name not matching to any record, or record
                         // may have been deleted in Acumatica. We can safely ignore it, but let's write to trace.
-                        PXTrace.WriteWarning(String.Format("No record found for folder {0} (screen {1}, ID {2})", folderInfo.Name, screenFolderInfo.ScreenID, folderInfo.ID));
+                        PXTrace.WriteWarning(string.Format("No record found for folder {0} (screen {1}, ID {2})", folderInfo.Name, screenFolderInfo.ScreenID, folderInfo.ID));
                         continue;
                     }
 
-                    bfc = (BoxFolderCache)this.FoldersByNote.Select(refNoteID);
+                    bfc = (BoxFolderCache)FoldersByNote.Select(refNoteID);
                     if (bfc != null)
                     {
                         // A folder existed before for this record; clear the previous entry for this refNoteID
-                        this.FoldersByNote.Delete(bfc);
+                        FoldersByNote.Delete(bfc);
                     }
 
                     // Store folder in cache for future reference
-                    bfc = (BoxFolderCache)this.FoldersByFolderID.Cache.CreateInstance();
+                    bfc = (BoxFolderCache)FoldersByFolderID.Cache.CreateInstance();
                     bfc.FolderID = folderInfo.ID;
                     bfc.ParentFolderID = folderInfo.ParentFolderID;
                     bfc.RefNoteID = refNoteID;
                     bfc.LastModifiedDateTime = null; //To force initial sync
-                    bfc = this.FoldersByFolderID.Insert(bfc);
+                    bfc = FoldersByFolderID.Insert(bfc);
                 }
 
                 if (bfc.LastModifiedDateTime != folderInfo.ModifiedAt)
@@ -455,8 +496,8 @@ namespace PX.SM.BoxStorageProvider
                     {
                         RefreshRecordFileList(screenFolderInfo.ScreenID, folderInfo.Name, folderInfo.ID, bfc.RefNoteID);
                         bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
-                        this.FoldersByFolderID.Update(bfc);
-                        this.Actions.PressSave();
+                        FoldersByFolderID.Update(bfc);
+                        Actions.PressSave();
                     }
                     finally
                     {
@@ -468,6 +509,8 @@ namespace PX.SM.BoxStorageProvider
 
         public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID)
         {
+
+            //TODO: Handle activities folders differently that the rest
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             //Get list of files contained in the record folder. RecurseDepth=0 will retrieve all subfolders
@@ -480,10 +523,10 @@ namespace PX.SM.BoxStorageProvider
                 if (boxFile == null)
                 {
                     //File was deleted
-                    this.FilesByNoteID.Delete(result);
-                    this.UploadFiles.Delete(result);
-                    this.UploadFileRevisions.Delete(result);
-                    this.NoteDocs.Delete(result);
+                    FilesByNoteID.Delete(result);
+                    UploadFiles.Delete(result);
+                    UploadFileRevisions.Delete(result);
+                    NoteDocs.Delete(result);
                 }
                 else
                 {
@@ -516,10 +559,10 @@ namespace PX.SM.BoxStorageProvider
                         if (!fileInfo.UID.HasValue) throw new PXException(Messages.ErrorAddingFileUIDNull, fileName);
 
                         UploadFileMaintenance.SetAccessSource(fileInfo.UID.Value, null, screenID);
-                        NoteDoc noteDoc = (NoteDoc)this.NoteDocs.Cache.CreateInstance();
+                        NoteDoc noteDoc = (NoteDoc)NoteDocs.Cache.CreateInstance();
                         noteDoc.NoteID = refNoteID;
                         noteDoc.FileID = fileInfo.UID;
-                        this.NoteDocs.Insert(noteDoc);
+                        NoteDocs.Insert(noteDoc);
 
                         blobHandlerGuid = ufm.Revisions.Current.BlobHandler;
                     }
@@ -530,11 +573,11 @@ namespace PX.SM.BoxStorageProvider
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
                     }
 
-                    var bfc = (BoxFileCache)this.FilesByBlobHandler.Cache.CreateInstance();
+                    var bfc = (BoxFileCache)FilesByBlobHandler.Cache.CreateInstance();
                     bfc.BlobHandler = blobHandlerGuid;
                     bfc.FileID = boxFile.ID;
                     bfc.ParentFolderID = boxFile.ParentFolderID;
-                    bfc = this.FilesByBlobHandler.Insert(bfc);
+                    bfc = FilesByBlobHandler.Insert(bfc);
                 }
             }
         }
@@ -554,10 +597,10 @@ namespace PX.SM.BoxStorageProvider
         private Guid? FindMatchingNoteIDForFolder(string screenID, string keyValues)
         {
             string graphType = PXPageIndexingService.GetGraphTypeByScreenID(screenID);
-            if (String.IsNullOrEmpty(graphType)) throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, screenID);
+            if (string.IsNullOrEmpty(graphType)) throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, screenID);
 
             string primaryViewName = PXPageIndexingService.GetPrimaryView(graphType);
-            if (String.IsNullOrEmpty(primaryViewName)) throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, graphType);
+            if (string.IsNullOrEmpty(primaryViewName)) throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, graphType);
 
             var viewDescription = new Data.Description.PXViewDescription(primaryViewName);
 
@@ -616,7 +659,7 @@ namespace PX.SM.BoxStorageProvider
 
         public string GetFolderDescriptionForEntityRow(object row)
         {
-            PXCache cache = this.Caches[row.GetType()];
+            PXCache cache = Caches[row.GetType()];
             if (cache == null) return "";
 
             foreach (PropertyInfo prop in cache.GetItemType().GetProperties())

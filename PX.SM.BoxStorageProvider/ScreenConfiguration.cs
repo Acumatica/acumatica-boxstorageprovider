@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using PX.Data;
@@ -20,7 +19,7 @@ namespace PX.SM.BoxStorageProvider
         public virtual IEnumerable screens()
         {
             bool found = false;
-            foreach (Screen item in Screens.Cache.Inserted)
+            foreach (Screen item in this.Screens.Cache.Inserted)
             {
                 found = true;
                 yield return item;
@@ -60,10 +59,10 @@ namespace PX.SM.BoxStorageProvider
         private static bool ScreenPrimaryViewSupportsAttachments(PXGraph graph, string screenID)
         {
             string graphType = PXPageIndexingService.GetGraphTypeByScreenID(screenID);
-            if (String.IsNullOrEmpty(graphType)) return false;
+            if (string.IsNullOrEmpty(graphType)) return false;
 
             string primaryViewName = PXPageIndexingService.GetPrimaryView(graphType);
-            if (String.IsNullOrEmpty(primaryViewName)) return false;
+            if (string.IsNullOrEmpty(primaryViewName)) return false;
 
             PXViewInfo view = GraphHelper.GetGraphView(graphType, primaryViewName);
             if (view == null) return false;

@@ -64,7 +64,7 @@ namespace PX.SM.BoxStorageProvider
                 catch (Exception e)
                 {
                     failed = true;
-                    PXProcessing<Screen>.SetError(i, e is PXOuterException ? e.Message + "\r\n" + String.Join("\r\n", ((PXOuterException)e).InnerMessages) : e.Message);
+                    PXProcessing<Screen>.SetError(i, e is PXOuterException ? e.Message + "\r\n" + string.Join("\r\n", ((PXOuterException)e).InnerMessages) : e.Message);
                 }
             }
 
