@@ -17,8 +17,8 @@ namespace PX.SM.BoxStorageProvider
         [PXButton(ImageKey = "LinkWB")]
         public virtual IEnumerable Login(PXAdapter adapter)
         {
-            this.Actions.PressSave();
-            this.AuthInfo.AskExt();
+            Actions.PressSave();
+            AuthInfo.AskExt();
             return adapter.Get();
         }
         
@@ -28,14 +28,14 @@ namespace PX.SM.BoxStorageProvider
         {
             PXLongOperation.StartOperation(this, delegate
             {
-                this.User.Cache.Clear();
+                User.Cache.Clear();
                 var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-                BoxUserTokens boxUser = PXCache<BoxUserTokens>.CreateCopy(this.User.Select());
+                BoxUserTokens boxUser = PXCache<BoxUserTokens>.CreateCopy(User.Select());
                 var userInfo = BoxUtils.GetUserInfo(tokenHandler).Result;
                 boxUser.BoxUserID = userInfo.Id;
                 boxUser.BoxEmailAddress = userInfo.Login;
-                this.User.Update(boxUser);
-                this.Actions.PressSave();
+                User.Update(boxUser);
+                Actions.PressSave();
             });
 
             return adapter.Get();

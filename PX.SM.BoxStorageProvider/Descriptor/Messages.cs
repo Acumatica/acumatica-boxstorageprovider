@@ -6,6 +6,7 @@ namespace PX.SM.BoxStorageProvider
     public static class Messages
     {
         public const string MiscellaneousFilesFolderName = "Miscellaneous Files";
+        public const string ActivitiesFolderName = "Activities";
         public const string SynchronizationError = "One or more folders could not be synchronized.";
         public const string BrowseBoxFiles = "Browse Box Files...";
         public const string RootFolderNotSetup = "The Box.com root folder name is not setup in the file provider settings.";
@@ -31,8 +32,8 @@ namespace PX.SM.BoxStorageProvider
         public const string UploadFileRevisionMissingBlobHandler = "UploadFileRevision record for file {0} has no blob handler GUID.";
         public const string BoxUserNotFoundOrTokensExpired = "Failed to retrieve user. Please verify that you are authenticated with Box.";
         public const string BoxServiceError = "Box service returned the following error : ";
-        public const string BoxFolderNotFoundRunSynchAgain = "Screen folder ID {0} not found. Please run folder synchronization and try again.";
         public const string BoxFolderNotFoundTryAgain = "Folder ID {0} not found. Please try again.";
+        public const string BoxFolderNotFoundRunSynchAgain = "Folder for screen {0} not found. Please try again.";
         public const string MiscFolderNotFoundRunSynchAgain = "Miscellaneous Files Folder not found. Please run folder synchronization and try again.";
 
         public const string Expired = "Expired";

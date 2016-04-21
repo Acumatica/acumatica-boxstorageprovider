@@ -15,10 +15,10 @@ GO
 ALTER TABLE [dbo].[BoxFileCache] ADD  DEFAULT ((0)) FOR [CompanyID]
 GO
 
-
 CREATE TABLE [dbo].[BoxFolderCache](
 	[CompanyID] [int] NOT NULL,
 	[FolderID] [nvarchar](256) NOT NULL,
+	[ActivityFolderID] [nvarchar](256) NULL,
 	[LastModifiedDateTime] [datetime] NULL,
 	[RefNoteID] [uniqueidentifier] NULL,
 	[ParentFolderID] [nvarchar](256) NULL,

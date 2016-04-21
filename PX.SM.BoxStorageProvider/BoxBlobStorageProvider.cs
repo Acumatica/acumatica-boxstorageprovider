@@ -44,7 +44,7 @@ namespace PX.SM.BoxStorageProvider
             yield return new BlobProviderSettings()
             {
                 Name = RootFolderParam,
-                Value = this.RootFolder
+                Value = RootFolder
             };
         }
 
@@ -53,7 +53,7 @@ namespace PX.SM.BoxStorageProvider
             foreach (BlobProviderSettings providerSettings in settings)
             {
                 if (providerSettings.Name == "RootFolder")
-                    this.RootFolder = providerSettings.Value;
+                    RootFolder = providerSettings.Value;
             }
         }
 

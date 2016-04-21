@@ -33,7 +33,7 @@ namespace PX.SM.BoxStorageProvider
         private static BoxClient GetNewBoxClient(UserTokenHandler tokenHandler)
         {
             var currentUser = tokenHandler.GetCurrentUser();
-            if(currentUser == null || currentUser.AccessToken == null || currentUser.RefreshToken == null)
+            if (currentUser == null || currentUser.AccessToken == null || currentUser.RefreshToken == null)
             {
                 throw new PXException(Messages.BoxUserNotFoundOrTokensExpired);
             }
@@ -65,8 +65,8 @@ namespace PX.SM.BoxStorageProvider
 
             await client.Auth.AuthenticateAsync(authCode);
         }
- 
-        
+
+
         public static async Task<Box.V2.Models.BoxUser> GetUserInfo(UserTokenHandler tokenHandler)
         {
             var client = GetNewBoxClient(tokenHandler);
@@ -197,13 +197,13 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<List<FileFolderInfo>> GetFileList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFileListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, String.Empty);
+            return await GetFileListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty);
         }
 
         public static async Task<List<FileFolderInfo>> GetFolderList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, String.Empty);
+            return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty);
         }
 
         public static async Task<FileFolderInfo> FindFolder(UserTokenHandler tokenHandler, string parentFolderID, string name)
