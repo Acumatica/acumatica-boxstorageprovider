@@ -36,6 +36,7 @@ namespace PX.SM.BoxStorageProvider
             var bfc = (BoxFolderCache)FoldersByNote.Select(refNoteID);
             if (bfc == null)
             {
+                //GetFolderFromBox()
                 // Folder doesn't exist in cache; retrieve it from Box or create it if it doesn't exist.
                 EntityHelper entityHelper = new EntityHelper(this);
                 object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
@@ -73,27 +74,18 @@ namespace PX.SM.BoxStorageProvider
                         }
                         catch (AggregateException ae)
                         {
-                            ae.Handle((e) =>
+                            HandleAggregateException(ae, (exception) =>
                             {
-                                PXTrace.WriteError(e);
-                                var boxException = e as BoxException;
-                                if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                                using (new PXConnectionScope())
                                 {
-                                    using (new PXConnectionScope())
-                                    {
-                                        // Delete entry from BoxFolderCache so that it gets created again.
-                                        recordFolderCache.ActivityFolderID = null;
-                                        FoldersByNote.Update(recordFolderCache);
-                                        Actions.PressSave();
+                                    // Delete entry from BoxFolderCache so that it gets created again.
+                                    recordFolderCache.ActivityFolderID = null;
+                                    FoldersByNote.Update(recordFolderCache);
+                                    Actions.PressSave();
 
-                                        throw new PXException(Messages.BoxFolderNotFoundTryAgain, recordFolderCache.FolderID, e);
-                                    }
+                                    throw new PXException(Messages.BoxFolderNotFoundTryAgain, recordFolderCache.FolderID, exception);
                                 }
-
-                                return false;
                             });
-
-                            return null;
                         }
                     }
 
@@ -122,29 +114,23 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    ae.Handle((e) =>
+                    HandleAggregateException(ae, (exception) =>
                     {
-                        PXTrace.WriteError(e);
-                        var boxException = e as BoxException;
-                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        using (new PXConnectionScope())
                         {
-                            using (new PXConnectionScope())
-                            {
-                                // Delete entry from BoxFolderCache so that it gets created again.
-                                FoldersByNote.Delete(bfc);
-                                Actions.PressSave();
+                            // Delete entry from BoxFolderCache so that it gets created again.
+                            FoldersByNote.Delete(bfc);
+                            Actions.PressSave();
 
-                                throw new PXException(Messages.BoxFolderNotFoundTryAgain, bfc.FolderID, e);
-                            }
+                            throw new PXException(Messages.BoxFolderNotFoundTryAgain, bfc.FolderID, exception);
                         }
-
-                        return false;
                     });
 
                     return null;
                 }
             }
         }
+
 
         private BoxUtils.FileFolderInfo CreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
         {
@@ -179,16 +165,9 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                ae.Handle((e) =>
+                HandleAggregateException(ae, (exception) =>
                 {
-                    PXTrace.WriteError(e);
-                    var boxException = e as BoxException;
-                    if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        throw (new PXException(string.Format(Messages.BoxFolderNotFoundTryAgain, parentFolderID), boxException));
-                    }
-
-                    throw e;
+                    throw (new PXException(string.Format(Messages.BoxFolderNotFoundTryAgain, parentFolderID), exception));
                 });
 
                 return null;
@@ -216,17 +195,9 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                ae.Handle((e) =>
+                HandleAggregateException(ae, (exception) =>
                 {
-                    PXTrace.WriteError(e);
-                    var be = e as BoxException;
-                    if (be != null && be.StatusCode == HttpStatusCode.NotFound)
-                    {
-
-                        throw new PXException(Messages.BoxFileNotFound, e);
-                    }
-
-                    return false;
+                    throw new PXException(Messages.BoxFileNotFound, exception);
                 });
 
                 return new byte[0];
@@ -244,16 +215,9 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                ae.Handle((e) =>
+                HandleAggregateException(ae, (exception) =>
                 {
-                    PXTrace.WriteError(e);
-                    var boxException = e as BoxException;
-                    if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        throw new PXException(Messages.FileNotFoundInBox, bfc.FileID, e);
-                    }
-
-                    return false;
+                    throw new PXException(Messages.FileNotFoundInBox, bfc.FileID, exception);
                 });
             }
         }
@@ -341,23 +305,16 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    ae.Handle((e) =>
+                    HandleAggregateException(ae, (exception) =>
                     {
-                        PXTrace.WriteError(e);
-                        var boxException = e as BoxException;
-                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                        using (new PXConnectionScope())
                         {
-                            using (new PXConnectionScope())
-                            {
-                                // Delete entry from BoxFolderCache so that it gets created again.
-                                FoldersByScreen.Delete(bfc);
-                                Actions.PressSave();
+                            // Delete entry from BoxFolderCache so that it gets created again.
+                            FoldersByScreen.Delete(bfc);
+                            Actions.PressSave();
 
-                                throw new PXException(Messages.MiscFolderNotFoundRunSynchAgain, bfc.FolderID, e);
-                            }
+                            throw new PXException(Messages.MiscFolderNotFoundRunSynchAgain, bfc.FolderID, exception);
                         }
-
-                        return false;
                     });
 
                     return null;
@@ -383,21 +340,12 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    ae.Handle((e) =>
+                    HandleAggregateException(ae, (exception) =>
                     {
-                        PXTrace.WriteError(e);
-                        var boxException = e as BoxException;
-                        if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
-                        {
-                            // Folder no longer exist on Box - it may have been deleted on purpose by the user. Remove it from cache so it is recreated on the next run.
-                            screenFolderInfo = FoldersByScreen.Delete(screenFolderInfo);
-                            Actions.PressSave();
-                            throw new PXException(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID);
-                        }
-                        else
-                        {
-                            return false;
-                        }
+                        // Folder no longer exist on Box - it may have been deleted on purpose by the user. Remove it from cache so it is recreated on the next run.
+                        screenFolderInfo = FoldersByScreen.Delete(screenFolderInfo);
+                        Actions.PressSave();
+                        throw new PXException(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderInfo.ScreenID);
                     });
                 }
             }
@@ -673,6 +621,21 @@ namespace PX.SM.BoxStorageProvider
             }
 
             return string.Empty;
+        }
+
+        private static void HandleAggregateException(AggregateException aggregateException, Action<Exception> action)
+        {
+            aggregateException.Handle((e) =>
+            {
+                PXTrace.WriteError(e);
+                var boxException = e as BoxException;
+                if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
+                {
+                    action(e);
+                }
+
+                return false;
+            });
         }
     }
 }
