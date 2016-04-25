@@ -36,73 +36,8 @@ namespace PX.SM.BoxStorageProvider
             var bfc = (BoxFolderCache)FoldersByNote.Select(refNoteID);
             if (bfc == null)
             {
-                //GetFolderFromBox()
                 // Folder doesn't exist in cache; retrieve it from Box or create it if it doesn't exist.
-                EntityHelper entityHelper = new EntityHelper(this);
-                object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
-                Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
-
-                if (primaryGraphType == null) throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
-                if (entityRow == null) throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID);
-
-                object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
-                //Save an activity related file into the record's activity folder
-                if (entityRow.GetType().FullName == "PX.Objects.CR.EPActivity" && activityRefNoteID != null)
-                {
-                    var activityRefNoteGuid = Guid.Parse(activityRefNoteID.ToString());
-
-                    //Get or create record folder
-                    BoxUtils.FileFolderInfo recordFolderInfo = GetOrCreateBoxFolderForNoteID(activityRefNoteGuid);
-                    BoxFolderCache recordFolderCache = FoldersByFolderID.Select(recordFolderInfo.ID);
-
-                    //Get/Create Activities folder 
-                    BoxUtils.FileFolderInfo activityFolderInfo = null;
-                    if (string.IsNullOrEmpty(recordFolderCache.ActivityFolderID))
-                    {
-                        // Create Actities folder and update cache for future reference.
-                        activityFolderInfo = CreateFolder(tokenHandler, recordFolderCache.FolderID, null, null, PXLocalizer.Localize(Messages.ActivitiesFolderName));
-                        recordFolderCache.ActivityFolderID = activityFolderInfo.ID;
-                        FoldersByFolderID.Update(recordFolderCache);
-                        Actions.PressSave();
-                    }
-                    else
-                    {
-                        try
-                        {
-                            // Folder was found in BoxFolderCache, retrieve it by ID
-                            activityFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, recordFolderCache.ActivityFolderID).Result;
-                        }
-                        catch (AggregateException ae)
-                        {
-                            HandleAggregateException(ae, (exception) =>
-                            {
-                                using (new PXConnectionScope())
-                                {
-                                    // Delete entry from BoxFolderCache so that it gets created again.
-                                    recordFolderCache.ActivityFolderID = null;
-                                    FoldersByNote.Update(recordFolderCache);
-                                    Actions.PressSave();
-
-                                    throw new PXException(Messages.BoxFolderNotFoundTryAgain, recordFolderCache.FolderID, exception);
-                                }
-                            });
-                        }
-                    }
-
-                    //Get/Create activityRecord folder
-                    System.Diagnostics.Debug.Assert(activityFolderInfo.ID == recordFolderCache.ActivityFolderID);
-                    return CreateFolderForEntity(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID);
-                }
-                else
-                {
-                    // Create folder from screenID, for example "Customers (AR303000)"
-                    PXSiteMapNode siteMapNode = PXSiteMap.Provider.FindSiteMapNode(primaryGraphType);
-                    if (siteMapNode == null) throw new PXException(Messages.SiteMapNodeForGraphNotFound, primaryGraphType.FullName);
-                    var bfcParent = (BoxFolderCache)FoldersByScreen.Select(siteMapNode.ScreenID);
-                    if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
-
-                    return CreateFolderForEntity(tokenHandler, bfcParent.FolderID, entityRow, refNoteID);
-                }
+                return CreateBoxFolder(refNoteID, tokenHandler);
             }
             else
             {
@@ -131,15 +66,81 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
+        private BoxUtils.FileFolderInfo CreateBoxFolder(Guid refNoteID, UserTokenHandler tokenHandler)
+        {
+            EntityHelper entityHelper = new EntityHelper(this);
+            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
+            Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
+            if (primaryGraphType == null) throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
+            if (entityRow == null) throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID);
 
-        private BoxUtils.FileFolderInfo CreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
+            object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
+            if (entityRow.GetType().FullName == "PX.Objects.CR.EPActivity" && activityRefNoteID != null)
+            {
+                //Save an activity related file into the record's activity folder
+                var activityRefNoteGuid = Guid.Parse(activityRefNoteID.ToString());
+
+                //Get or create record folder
+                BoxUtils.FileFolderInfo recordFolderInfo = GetOrCreateBoxFolderForNoteID(activityRefNoteGuid);
+                BoxFolderCache recordFolderCache = FoldersByFolderID.Select(recordFolderInfo.ID);
+
+                //Get/Create Activities folder 
+                BoxUtils.FileFolderInfo activityFolderInfo = null;
+                if (string.IsNullOrEmpty(recordFolderCache.ActivityFolderID))
+                {
+                    // Create Actities folder and update cache for future reference.
+                    activityFolderInfo = GetOrCreateFolder(tokenHandler, recordFolderCache.FolderID, null, null, PXLocalizer.Localize(Messages.ActivitiesFolderName));
+                    recordFolderCache.ActivityFolderID = activityFolderInfo.ID;
+                    FoldersByFolderID.Update(recordFolderCache);
+                    Actions.PressSave();
+                }
+                else
+                {
+                    try
+                    {
+                        // Folder was found in BoxFolderCache, retrieve it by ID
+                        activityFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, recordFolderCache.ActivityFolderID).Result;
+                    }
+                    catch (AggregateException ae)
+                    {
+                        HandleAggregateException(ae, (exception) =>
+                        {
+                            using (new PXConnectionScope())
+                            {
+                                // Delete entry from BoxFolderCache so that it gets created again.
+                                recordFolderCache.ActivityFolderID = null;
+                                FoldersByNote.Update(recordFolderCache);
+                                Actions.PressSave();
+
+                                throw new PXException(Messages.BoxFolderNotFoundTryAgain, recordFolderCache.FolderID, exception);
+                            }
+                        });
+                    }
+                }
+
+                //Get/Create activityRecord folder
+                return GetOrCreateFolderForEntity(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID);
+            }
+            else
+            {
+                // Create folder from screenID, for example "Customers (AR303000)"
+                PXSiteMapNode siteMapNode = PXSiteMap.Provider.FindSiteMapNode(primaryGraphType);
+                if (siteMapNode == null) throw new PXException(Messages.SiteMapNodeForGraphNotFound, primaryGraphType.FullName);
+                var bfcParent = (BoxFolderCache)FoldersByScreen.Select(siteMapNode.ScreenID);
+                if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
+
+                return GetOrCreateFolderForEntity(tokenHandler, bfcParent.FolderID, entityRow, refNoteID);
+            }
+        }
+
+        private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
         {
             // Try to find folder; if it doesn't exist, create it.
             string folderName = GetFolderNameForEntityRow(entityRow);
-            return CreateFolder(tokenHandler, parentFolderID, entityRow, refNoteID, folderName);
+            return GetOrCreateFolder(tokenHandler, parentFolderID, entityRow, refNoteID, folderName);
         }
 
-        private BoxUtils.FileFolderInfo CreateFolder(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid? refNoteID, string folderName)
+        private BoxUtils.FileFolderInfo GetOrCreateFolder(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid? refNoteID, string folderName)
         {
             try
             {
