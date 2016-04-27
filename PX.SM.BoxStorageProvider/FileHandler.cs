@@ -488,16 +488,31 @@ namespace PX.SM.BoxStorageProvider
                 }
             }
 
-            //Check for underlying activities records
-            BoxFolderCache currentFolder = this.FoldersByFolderID.Select(folderID);
-            if (currentFolder?.ActivityFolderID != null)
-            {
-                SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
-            }
-
             // Remove any files/folders coming from activities stored beneath the current record, they've been processed above
             var regex = new Regex($@"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}\\");
             var filesFoundOnlyOnServer = boxFileList.Where(x => !regex.IsMatch(x.Name)).ToList();
+
+            //Check for underlying activities records
+            BoxFolderCache currentFolder = this.FoldersByFolderID.Select(folderID);
+            if (currentFolder != null && boxFileList.Any(x => regex.IsMatch(x.Name)))
+            {
+                // If nullOrEmpty, Folder may have been created manually
+                if(string.IsNullOrEmpty(currentFolder.ActivityFolderID))
+                {
+                    //Find actual folder ID and save in BoxFolderCache's ActivityFolderID field
+                    BoxUtils.FileFolderInfo activityFolderinfo = BoxUtils.FindFolder(tokenHandler, folderID, $"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}").Result;
+                    if(activityFolderinfo != null)
+                    {
+                        currentFolder.ActivityFolderID = activityFolderinfo?.ID;
+                        FoldersByFolderID.Update(currentFolder);
+                    }
+                }
+
+                if(currentFolder.ActivityFolderID != null)
+                { 
+                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
+                }
+            }
 
             //Remaining files aren't found in cache but are in Box server. 
             if (filesFoundOnlyOnServer.Any())
