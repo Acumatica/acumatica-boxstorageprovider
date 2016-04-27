@@ -1,16 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using PX.Data;
-using System.IO;
-using System.Web.Compilation;
+﻿using Box.V2.Exceptions;
 using PX.Common;
-using Box.V2.Exceptions;
+using PX.Data;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
-using Newtonsoft.Json;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Web.Compilation;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -19,13 +17,22 @@ namespace PX.SM.BoxStorageProvider
         public const string MiscellaneousFolderScreenId = "00000000";
 
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.screenID, Equal<Required<BoxFolderCache.screenID>>>> FoldersByScreen;
+
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.folderID, Equal<Required<BoxFolderCache.folderID>>>> FoldersByFolderID;
+
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.parentFolderID, Equal<Required<BoxFolderCache.parentFolderID>>>> FoldersByParentFolderID;
+
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByNote;
+
         public PXSelect<BoxFileCache, Where<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>> FilesByBlobHandler;
 
         // Views needed to synchronize and manage file list
-        public PXSelectJoin<BoxFileCache, InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>, InnerJoin<UploadFile, On<UploadFile.fileID, Equal<UploadFileRevisionNoData.fileID>, And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>, InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
+        public PXSelectJoin<BoxFileCache,
+            InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>,
+            InnerJoin<UploadFile, On<UploadFile.fileID, Equal<UploadFileRevisionNoData.fileID>,
+                And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
+            InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
+
         public PXSelect<UploadFile> UploadFiles;
         public PXSelect<UploadFileRevision> UploadFileRevisions;
         public PXSelect<NoteDoc> NoteDocs;
@@ -71,8 +78,8 @@ namespace PX.SM.BoxStorageProvider
             EntityHelper entityHelper = new EntityHelper(this);
             object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
-            if (primaryGraphType == null) throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
-            if (entityRow == null) throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID);
+            if (primaryGraphType == null) { throw new PXException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID); }
+            if (entityRow == null) { throw new PXException(Messages.EntityRowForNoteIDNotFound, refNoteID); }
 
             object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
             if (entityRow.GetType().FullName == "PX.Objects.CR.EPActivity" && activityRefNoteID != null)
@@ -183,6 +190,7 @@ namespace PX.SM.BoxStorageProvider
             {
                 keyValues[i] = cache.GetValue(entityRow, cache.BqlKeys[i].Name).ToString();
             }
+
             return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
         }
 
@@ -320,8 +328,6 @@ namespace PX.SM.BoxStorageProvider
 
                     return null;
                 }
-
-
             }
         }
 
@@ -376,7 +382,7 @@ namespace PX.SM.BoxStorageProvider
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
             if (screen.ScreenID != FileHandler.MiscellaneousFolderScreenId && (forceSync || screenFolderInfo.LastModifiedDateTime != folderInfo.ModifiedAt))
             {
-                SynchronizeFolderContentsWithScreen(screenFolderInfo);
+                SynchronizeFolderContentsWithScreen(screenFolderInfo.ScreenID, screenFolderInfo.FolderID, forceSync);
                 screenFolderInfo.LastModifiedDateTime = folderInfo.ModifiedAt;
                 FoldersByScreen.Update(screenFolderInfo);
                 Actions.PressSave();
@@ -400,24 +406,24 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        private void SynchronizeFolderContentsWithScreen(BoxFolderCache screenFolderInfo)
+        private void SynchronizeFolderContentsWithScreen(string screenID, string folderID, bool isForcingSync)
         {
             // Retrieve top-level folder list
             // TODO: we'll have to go one level deeper when support for customizable folder structure will be added
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
-            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderInfo.FolderID, (int)BoxUtils.RecursiveDepth.NoDepth).Result;
+            List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, folderID, (int)BoxUtils.RecursiveDepth.NoDepth).Result;
             foreach (BoxUtils.FileFolderInfo folderInfo in list)
             {
                 BoxFolderCache bfc = FoldersByFolderID.Select(folderInfo.ID);
                 if (bfc == null)
                 {
                     // We've never seen this folder; sync it
-                    Guid? refNoteID = FindMatchingNoteIDForFolder(screenFolderInfo.ScreenID, folderInfo.Name);
+                    Guid? refNoteID = FindMatchingNoteIDForFolder(screenID, folderInfo.Name);
                     if (refNoteID == null)
                     {
                         // User may have created some folder manually with a name not matching to any record, or record
                         // may have been deleted in Acumatica. We can safely ignore it, but let's write to trace.
-                        PXTrace.WriteWarning(string.Format("No record found for folder {0} (screen {1}, ID {2})", folderInfo.Name, screenFolderInfo.ScreenID, folderInfo.ID));
+                        PXTrace.WriteWarning(string.Format("No record found for folder {0} (screen {1}, ID {2})", folderInfo.Name, screenID, folderInfo.ID));
                         continue;
                     }
 
@@ -437,15 +443,14 @@ namespace PX.SM.BoxStorageProvider
                     bfc = FoldersByFolderID.Insert(bfc);
                 }
 
-                if (bfc.LastModifiedDateTime != folderInfo.ModifiedAt)
+                if (isForcingSync || bfc.LastModifiedDateTime != folderInfo.ModifiedAt)
                 {
-                    //The SaveFile call will trigger a Load() on the BoxBlobStorageProvider which can be skipped
+                    RefreshRecordFileList(screenID, folderInfo.Name, folderInfo.ID, bfc.RefNoteID, isForcingSync);
+                    bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
+                    FoldersByFolderID.Update(bfc);
                     PXContext.SetSlot<bool>("BoxDisableLoad", true);
                     try
                     {
-                        RefreshRecordFileList(screenFolderInfo.ScreenID, folderInfo.Name, folderInfo.ID, bfc.RefNoteID);
-                        bfc.LastModifiedDateTime = folderInfo.ModifiedAt;
-                        FoldersByFolderID.Update(bfc);
                         Actions.PressSave();
                     }
                     finally
@@ -456,16 +461,14 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID)
+        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync)
         {
-
-            //TODO: Handle activities folders differently that the rest
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
             //Get list of files contained in the record folder. RecurseDepth=0 will retrieve all subfolders
             List<BoxUtils.FileFolderInfo> boxFileList = BoxUtils.GetFileList(tokenHandler, folderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
 
-            // Remove any files which were deleted in Box and still exist in the record.
+            // Remove files from cache if they don't exist on Box server
             foreach (PXResult<BoxFileCache, UploadFileRevisionNoData, UploadFile, NoteDoc> result in FilesByNoteID.Select(refNoteID))
             {
                 BoxUtils.FileFolderInfo boxFile = boxFileList.FirstOrDefault(f => f.ID == ((BoxFileCache)result).FileID);
@@ -485,7 +488,19 @@ namespace PX.SM.BoxStorageProvider
                 }
             }
 
-            if (boxFileList.Count > 0)
+            //Check for underlying activities records
+            BoxFolderCache currentFolder = this.FoldersByFolderID.Select(folderID);
+            if (currentFolder?.ActivityFolderID != null)
+            {
+                SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
+            }
+
+            // Remove any files/folders coming from activities stored beneath the current record, they've been processed above
+            var regex = new Regex($@"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}\\");
+            var filesFoundOnlyOnServer = boxFileList.Where(x => !regex.IsMatch(x.Name)).ToList();
+
+            //Remaining files aren't found in cache but are in Box server. 
+            if (filesFoundOnlyOnServer.Any())
             {
                 UploadFileMaintenance ufm = PXGraph.CreateInstance<UploadFileMaintenance>();
                 ufm.IgnoreFileRestrictions = true;
@@ -494,8 +509,8 @@ namespace PX.SM.BoxStorageProvider
                 {
                     ((UploadFileRevision)e.Row).BlobHandler = new Guid?(Guid.NewGuid());
                 });
-
-                foreach (BoxUtils.FileFolderInfo boxFile in boxFileList)
+                //Add files to the caches
+                foreach (BoxUtils.FileFolderInfo boxFile in filesFoundOnlyOnServer)
                 {
                     ufm.Clear();
                     string fileName = string.Format("{0}\\{1}", folderName, boxFile.Name);
@@ -504,7 +519,17 @@ namespace PX.SM.BoxStorageProvider
                     if (fileInfo == null)
                     {
                         fileInfo = new FileInfo(fileName, null, new byte[0]);
-                        if (!ufm.SaveFile(fileInfo)) throw new PXException(Messages.ErrorAddingFileSaveFileFailed, fileName);
+                        //The SaveFile call will trigger a Load() on the BoxBlobStorageProvider which can be skipped
+                        PXContext.SetSlot<bool>("BoxDisableLoad", true);
+                        try
+                        {
+                            if (!ufm.SaveFile(fileInfo)) throw new PXException(Messages.ErrorAddingFileSaveFileFailed, fileName);
+                        }
+                        finally
+                        {
+                            PXContext.SetSlot<bool>("BoxDisableLoad", false);
+                        }
+
                         if (!fileInfo.UID.HasValue) throw new PXException(Messages.ErrorAddingFileUIDNull, fileName);
 
                         UploadFileMaintenance.SetAccessSource(fileInfo.UID.Value, null, screenID);

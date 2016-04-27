@@ -85,11 +85,6 @@ namespace PX.SM.BoxStorageProvider
 
         public Guid Save(byte[] data, PXBlobStorageContext saveContext)
         {
-            //TODO:
-            //Store Activity files and wiki pictures under their parent record instead of Miscellaneous Files to maintain appropriate access rights (ex: Acumatica\Customers (AR303000)\ABARTENDE\Activities\1234\somefile.jpg
-            //Do not include reference to PX.Objects.CR.EPActivity in this file, compare by string
-            //if saveContext.PXGraph type == PX.Objects.CR.EPActivity
-            //then save file under Acumatica\Screen\ScreenRecord\Activities\ActivityRecord\file.ext instead of miscellaneous
             FileHandler graph = PXGraph.CreateInstance<FileHandler>();
             Guid blobHandler = graph.SaveFileToBoxAndUpdateFileCache(data, saveContext);
             return blobHandler;
