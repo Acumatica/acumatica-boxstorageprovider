@@ -75,10 +75,11 @@
     </Reference>
     <Reference Include="PX.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Acumatica ERP\T300DB\Bin\PX.Common.dll</HintPath>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Box_Dev\Bin\PX.Common.dll</HintPath>
     </Reference>
-    <Reference Include="PX.Data">
-      <HintPath>..\..\..\Acumatica ERP\T300DB\Bin\PX.Data.dll</HintPath>
+    <Reference Include="PX.Data, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Box_Dev\Bin\PX.Data.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -110,6 +111,7 @@
     <Compile Include="DAC\BoxUserTokens.cs" />
     <Compile Include="Descriptor\Messages.cs" />
     <Compile Include="FileHandler.cs" />
+    <Compile Include="SMAccessPersonalMaint.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="FolderSynchronization.cs" />
     <Compile Include="ScreenConfiguration.cs" />

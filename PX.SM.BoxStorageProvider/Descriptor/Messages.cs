@@ -35,6 +35,7 @@ namespace PX.SM.BoxStorageProvider
         public const string BoxFolderNotFoundTryAgain = "Folder ID {0} not found. Please try again.";
         public const string BoxFolderNotFoundRunSynchAgain = "Folder for screen {0} not found. Please try again.";
         public const string MiscFolderNotFoundRunSynchAgain = "Miscellaneous Files Folder not found. Please run folder synchronization and try again.";
+        public const string BoxUserProfile = "Box User Profile";
 
         public const string Expired = "Expired";
         public const string Configured = "Configured";
