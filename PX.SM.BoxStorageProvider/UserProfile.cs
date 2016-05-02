@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using PX.Common;
 using PX.Data;
-using PX.Api;
+using System;
+using System.Collections;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -58,6 +57,17 @@ namespace PX.SM.BoxStorageProvider
                 {
                     user.UserStatus = PXLocalizer.Localize(Messages.Configured);
                 }
+            }
+
+            Save.SetVisible(false);
+        }
+
+        public virtual void BoxUserTokens_RefreshTokenDate_FieldSelecting(PXCache sender, PXFieldSelectingEventArgs e)
+        {
+            var userToken = e.Row as BoxUserTokens;
+            if (userToken != null && userToken.RefreshTokenDate.HasValue)
+            {
+                e.ReturnValue = PXTimeZoneInfo.ConvertTimeFromUtc(userToken.RefreshTokenDate.Value, PXContext.PXIdentity.TimeZone);
             }
         }
 
