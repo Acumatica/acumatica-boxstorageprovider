@@ -293,13 +293,16 @@ namespace PX.SM.BoxStorageProvider
                     catch (AggregateException ae)
                     {
                         HandleAggregateException(ae, (_) => {
-                            //For now, Do nothing
-                            //TODO : What do we do when trying to update a folder description which doesn't exist anymore ?
-                            //Should it be handled in SynchronizeFolderContentsWithScreen, when folder are found on cache but no on box ?
+
+                            // Folder no longer exist on Box - it may have been deleted on purpose by the user
+                            screenFolderInfo = FoldersByScreen.Delete(boxFolderCache);
+
                         });
                     }
                 }
             }
+
+            Actions.PressSave();
         }
 
         public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync)
