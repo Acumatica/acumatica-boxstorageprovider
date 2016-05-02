@@ -111,10 +111,10 @@
     <Compile Include="DAC\BoxUserTokens.cs" />
     <Compile Include="Descriptor\Messages.cs" />
     <Compile Include="FileHandler.cs" />
+    <Compile Include="ScreenConfiguration.cs" />
     <Compile Include="SMAccessPersonalMaint.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="FolderSynchronization.cs" />
-    <Compile Include="ScreenConfiguration.cs" />
     <Compile Include="ScreenUtils.cs" />
     <Compile Include="UserProfile.cs" />
     <Compile Include="UserTokenHandler.cs" />
@@ -136,7 +136,8 @@
     </PreBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PostBuildEvent>XCOPY "$(SolutionDir)Pages" "C:\Program Files (x86)\Acumatica ERP\Box_Dev\CstPublished\pages_sm" /y</PostBuildEvent>
+    <PostBuildEvent>robocopy "C:\Program Files (x86)\Acumatica ERP\Box_Dev\Pages\SM" "$(SolutionDir)Pages" "SM2026*.*"
+IF ERRORLEVEL 1 exit 0</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
