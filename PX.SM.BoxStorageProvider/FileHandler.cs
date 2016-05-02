@@ -33,6 +33,7 @@ namespace PX.SM.BoxStorageProvider
                 And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
             InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
 
+        //Retrieve the parent folder of the specified fileID
         public PXSelectJoin<BoxFolderCache,
                 InnerJoin<BoxFileCache, On<BoxFileCache.parentFolderID, Equal<BoxFolderCache.folderID>>>,
             Where<BoxFileCache.fileID, Equal<Required<BoxFileCache.fileID>>>> ParentFolderByFileID;
@@ -285,7 +286,18 @@ namespace PX.SM.BoxStorageProvider
                 if (row != null)
                 {
                     var description = GetFolderDescriptionForEntityRow(row);
-                    BoxUtils.UpdateFolderDescription(tokenHandler, boxFolderCache.FolderID, description).Wait();
+                    try
+                    {
+                        BoxUtils.UpdateFolderDescription(tokenHandler, boxFolderCache.FolderID, description).Wait();
+                    }
+                    catch (AggregateException ae)
+                    {
+                        HandleAggregateException(ae, (_) => {
+                            //For now, Do nothing
+                            //TODO : What do we do when trying to update a folder description which doesn't exist anymore ?
+                            //Should it be handled in SynchronizeFolderContentsWithScreen, when folder are found on cache but no on box ?
+                        });
+                    }
                 }
             }
         }
@@ -679,6 +691,7 @@ namespace PX.SM.BoxStorageProvider
                 if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
                 {
                     action(e);
+                    return true;
                 }
 
                 return false;

@@ -28,7 +28,7 @@ namespace PX.SM.BoxStorageProvider
                 BoxUserTokens currentUser = PXCache<BoxUserTokens>.CreateCopy(GetCurrentUser());
                 currentUser.AccessToken = e.Session.AccessToken;
                 currentUser.RefreshToken = e.Session.RefreshToken;
-                currentUser.RefreshTokenDate = PXTimeZoneInfo.Now;
+                currentUser.RefreshTokenDate = PXTimeZoneInfo.UtcNow;
                 Caches[typeof(BoxUserTokens)].Update(currentUser);
                 Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
             }
