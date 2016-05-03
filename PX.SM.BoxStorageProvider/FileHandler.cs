@@ -337,7 +337,7 @@ namespace PX.SM.BoxStorageProvider
             var filesFoundOnlyOnServer = boxFileList.Where(x => !regex.IsMatch(x.Name)).ToList();
 
             //Check for underlying activities records
-            BoxFolderCache currentFolder = this.FoldersByFolderID.Select(folderID);
+            BoxFolderCache currentFolder = FoldersByFolderID.Select(folderID);
             if (currentFolder != null && boxFileList.Any(x => regex.IsMatch(x.Name)))
             {
                 // If nullOrEmpty, Folder may have been created manually

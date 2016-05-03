@@ -1,26 +1,38 @@
-﻿<%@ Page Language="C#" MasterPageFile="~/MasterPages/ListView.master" AutoEventWireup="true" 
+﻿<%@ Page Language="C#" MasterPageFile="~/MasterPages/FormDetail.master" AutoEventWireup="true"
     CodeFile="SM202620.aspx.cs" Inherits="Pages_SM_SM202620" Title="Box Screen Configuration"
-    ValidateRequest="false"  %>
+    ValidateRequest="false" %>
+<%@ MasterType VirtualPath="~/MasterPages/FormDetail.master" %>
 
-<%@ MasterType VirtualPath="~/MasterPages/ListView.master" %>
-<asp:Content ID="cont1" ContentPlaceHolderID="phDS" runat="server">
-    <px:PXDataSource ID="ds" Width="100%" runat="server" Visible="True" PrimaryView="Screens" TypeName="PX.SM.BoxStorageProvider.ScreenConfiguration">
-		<CallbackCommands>            
-            <px:PXDSCallbackCommand CommitChanges="True" Name="Save" />
-		</CallbackCommands>
-	</px:PXDataSource>
+<asp:Content ID="dsContent" ContentPlaceHolderID="phDS" runat="server">
+    <px:PXDataSource ID="ds" runat="server" Visible="True" PrimaryView="Screens" TypeName="PX.SM.BoxStorageProvider.ScreenConfiguration" SuspendUnloading="False">
+        <DataTrees>
+			<px:PXTreeDataMember TreeView="SiteMap" TreeKeys="NodeID" />
+		</DataTrees>
+    </px:PXDataSource>
 </asp:Content>
-<asp:Content ID="cont2" ContentPlaceHolderID="phL" runat="Server">
-    <px:PXGrid ID="grid" runat="server" Height="400px" Width="100%" Style="z-index: 100" AllowPaging="true" AdjustPageSize="Auto" AllowSearch="true" DataSourceID="ds" SkinID="Inquire" Caption="Screens">
+<asp:Content ID="formContent" ContentPlaceHolderID="phF" runat="Server">
+    <px:PXFormView ID="screensForm" runat="server" DataSourceID="ds" DataMember="Screens" Width="100%">
+        <Template>
+            <px:PXTreeSelector ID="screenIDSelector" runat="server" DataField="ScreenID" Width="200px" PopulateOnDemand="True" ShowRootNode="False" 
+                TreeDataSourceID="ds" TreeDataMember="SiteMap" MinDropWidth="415">
+				<DataBindings>
+					<px:PXTreeItemBinding DataMember="SiteMap" TextField="Title" ValueField="ScreenID" ToolTipField="TitleWithPath" ImageUrlField="Icon" />
+				</DataBindings>
+				<AutoCallBack Command="Cancel" Target="ds"></AutoCallBack>
+			</px:PXTreeSelector>
+        </Template>
+    </px:PXFormView>
+</asp:Content>
+<asp:Content ID="gridContent" ContentPlaceHolderID="phG" runat="Server">
+    <px:PXGrid ID="fieldsGrid" runat="server" DataSourceID="ds" Style="z-index: 100" AdjustPageSize="Auto" AllowSearch="True" SkinID="Details" MatrixMode="true" >
         <Levels>
-            <px:PXGridLevel DataMember="Screens">
+            <px:PXGridLevel DataMember="Fields">
+                <Mode InitNewRow="True" />
                 <Columns>
-                    <px:PXGridColumn DataField="ScreenID" Width="100px" />
-					<px:PXGridColumn DataField="Name" Width="300px" />
+                    <px:PXGridColumn AllowNull="False" DataField="FieldName" TextAlign="Center" Width="150px" />
                 </Columns>
             </px:PXGridLevel>
         </Levels>
-		<AutoSize Container="Window" Enabled="True" MinHeight="200" />
-		<Layout ShowRowStatus="False" />
+        <AutoSize Enabled="True" MinHeight="150" />
     </px:PXGrid>
 </asp:Content>
