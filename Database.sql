@@ -69,3 +69,29 @@ CREATE TABLE [dbo].[BoxUserTokens](
 
 ALTER TABLE [dbo].[BoxUserTokens] ADD  DEFAULT ((0)) FOR [CompanyID]
 GO
+
+CREATE TABLE [dbo].[BoxScreenConfiguration](
+	[CompanyID] [int] NOT NULL,
+	[ScreenID] [varchar](8) NOT NULL,
+	[LineCntr] [int] NOT NULL,
+ CONSTRAINT [BoxScreenConfiguration_PK] PRIMARY KEY CLUSTERED 
+(
+	[CompanyID] ASC,
+	[ScreenID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+CREATE TABLE [dbo].[BoxScreenGroupingFields](
+	[CompanyID] [int] NOT NULL,
+	[ScreenID] [varchar](8) NOT NULL,
+	[LineNbr] [int] NOT NULL,
+	[FieldName] [varchar](128) NOT NULL
+ CONSTRAINT [BoxScreenGroupingFields_PK] PRIMARY KEY CLUSTERED 
+(
+	[CompanyID] ASC,
+	[ScreenID] ASC,
+	[LineNbr] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
