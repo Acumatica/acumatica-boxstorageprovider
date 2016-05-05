@@ -56,7 +56,8 @@
 		[PXDBString(128)]
 		[PXDefault("")]
 		[PXUIField(DisplayName = "Field Name")]
-		public virtual string FieldName
+        [PXStringList(new string[] { "screenNotSelected" }, new string[] { "Please select a screen first..." })]
+        public virtual string FieldName
 		{
 			get
 			{
