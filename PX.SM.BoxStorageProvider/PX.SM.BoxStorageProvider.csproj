@@ -108,6 +108,7 @@
     <Compile Include="BoxUtils.cs" />
     <Compile Include="DAC\BoxFileCache.cs" />
     <Compile Include="DAC\BoxFolderCache.cs" />
+    <Compile Include="DAC\BoxFolderSublevelCache.cs" />
     <Compile Include="DAC\BoxScreenConfiguration.cs" />
     <Compile Include="DAC\BoxScreenGroupingFields.cs" />
     <Compile Include="DAC\BoxUserTokens.cs" />

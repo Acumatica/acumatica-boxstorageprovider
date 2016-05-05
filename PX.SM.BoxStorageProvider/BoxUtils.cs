@@ -83,13 +83,7 @@ namespace PX.SM.BoxStorageProvider
         {
             var folderRequest = new Box.V2.Models.BoxFolderRequest { Name = name, Parent = new Box.V2.Models.BoxRequestEntity { Id = parentFolderID } };
             Box.V2.Models.BoxFolder folder = await client.FoldersManager.CreateAsync(folderRequest, new List<string> { Box.V2.Models.BoxFolder.FieldName, Box.V2.Models.BoxFolder.FieldModifiedAt });
-            return new FileFolderInfo
-            {
-                ID = folder.Id,
-                Name = folder.Name,
-                ParentFolderID = parentFolderID,
-                ModifiedAt = folder.ModifiedAt
-            };
+            return new FileFolderInfo(folder.Id, folder.Name, parentFolderID, folder.ModifiedAt);
         }
 
         public static async Task<FileFolderInfo> CreateFolder(UserTokenHandler tokenHandler, string name, string parentFolderID, string description)
@@ -315,6 +309,16 @@ namespace PX.SM.BoxStorageProvider
             public string Name;
             public string ParentFolderID;
             public DateTime? ModifiedAt;
+
+            public FileFolderInfo() { }
+
+            public FileFolderInfo(string id, string name, string parentFolderID, DateTime? modifiedAt)
+            {
+                this.ID = id;
+                this.Name = name;
+                this.ParentFolderID = parentFolderID;
+                this.ModifiedAt = modifiedAt;
+            }
         }
     }
 }

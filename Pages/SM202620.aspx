@@ -24,7 +24,7 @@
     </px:PXFormView>
 </asp:Content>
 <asp:Content ID="gridContent" ContentPlaceHolderID="phG" runat="Server">
-    <px:PXGrid ID="fieldsGrid" runat="server" DataSourceID="ds" Style="z-index: 100" AdjustPageSize="Auto" AllowSearch="True" SkinID="Details" MatrixMode="true" >
+    <px:PXGrid ID="fieldsGrid" runat="server" DataSourceID="ds" Style="z-index: 100" AdjustPageSize="Auto" AllowSearch="True" SkinID="Details" MatrixMode="true" Caption="Grouping Fields" CaptionVisible="true" >
         <Levels>
             <px:PXGridLevel DataMember="Fields">
                 <Mode InitNewRow="True" />

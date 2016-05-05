@@ -18,8 +18,8 @@ namespace PX.SM.BoxStorageProvider
         {
             // This function name is misleading -- this is invoked when the user clicks the "Browse Box Files" button. 
             FileHandler graph = PXGraph.CreateInstance<FileHandler>();
-            BoxUtils.FileFolderInfo folder = graph.GetOrCreateBoxFolderForNoteID(noteID);
-            throw new PXRedirectToUrlException("~/Pages/SM/SM202670.aspx?FolderID=" + folder.ID, "Box.com Folder");
+            string folderID = graph.GetOrCreateBoxFolderForNoteID(noteID);
+            throw new PXRedirectToUrlException("~/Pages/SM/SM202670.aspx?FolderID=" + folderID, "Box.com Folder");
         }
 
         public string GetEditUrl(Guid fileID)
