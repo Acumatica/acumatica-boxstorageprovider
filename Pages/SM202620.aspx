@@ -28,6 +28,9 @@
         <Levels>
             <px:PXGridLevel DataMember="Fields">
                 <Mode InitNewRow="True" />
+                <RowTemplate>
+                    <px:PXDropDown ID="fieldDdlID" runat="server" DataField="FieldName" />
+                </RowTemplate>
                 <Columns>
                     <px:PXGridColumn AllowNull="False" DataField="FieldName" TextAlign="Center" Width="150px" />
                 </Columns>

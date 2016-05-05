@@ -28,8 +28,7 @@ namespace PX.SM.BoxStorageProvider
         public PXSelect<BoxFileCache, Where<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>> FilesByBlobHandler;
 
         public PXSelect<BoxScreenGroupingFields,
-            Where<BoxScreenGroupingFields.screenID, Equal<Required<BoxScreenGroupingFields.screenID>>>,
-            OrderBy<Asc<BoxScreenGroupingFields.lineNbr>>> FieldsGroupingByScreenID;
+            Where<BoxScreenGroupingFields.screenID, Equal<Required<BoxScreenGroupingFields.screenID>>>> FieldsGroupingByScreenID;
 
         // Views needed to synchronize and manage file list
         public PXSelectJoin<BoxFileCache,
@@ -270,7 +269,7 @@ namespace PX.SM.BoxStorageProvider
             BoxFolderCache screenFolderInfo = FoldersByScreen.Select(screen.ScreenID);
             foreach (BoxFolderCache boxFolderCache in FoldersByParentFolderID.Select(screenFolderInfo.FolderID))
             {
-                object row = entityHelper.GetEntityRow(boxFolderCache.RefNoteID);
+                object row = entityHelper.GetEntityRow(boxFolderCache.RefNoteID, true);
                 if (row != null)
                 {
                     var description = GetFolderDescriptionForEntityRow(row);
@@ -441,6 +440,9 @@ namespace PX.SM.BoxStorageProvider
             // TODO: we'll have to go one level deeper when support for customizable folder structure will be added
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
             List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, folderID, (int)BoxUtils.RecursiveDepth.NoDepth).Result;
+
+            //TODO : Use a parameter or branch the logic instead of hardcoding 2 for sub levels
+            //List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, folderID, 2).Result;
             foreach (BoxUtils.FileFolderInfo folderInfo in list)
             {
                 BoxFolderCache bfc = FoldersByFolderID.Select(folderInfo.ID);
@@ -556,7 +558,7 @@ namespace PX.SM.BoxStorageProvider
         private string GetScreenID(Guid refNoteID)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
+            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null || entityRow == null)
             {
@@ -569,7 +571,7 @@ namespace PX.SM.BoxStorageProvider
         private string GetSublevelName(Guid refNoteID)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
+            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null || entityRow == null)
             {
@@ -582,7 +584,7 @@ namespace PX.SM.BoxStorageProvider
             foreach (var field in fieldGroupings)
             {
                 var value = entityRow.GetType().GetProperty(field.FieldName)?.GetValue(entityRow);
-                folderNameBuilder.Append($"{value} ");
+                folderNameBuilder.Append(value).Append(' ');
             }
 
             return folderNameBuilder.ToString().Trim();
@@ -591,7 +593,7 @@ namespace PX.SM.BoxStorageProvider
         private BoxUtils.FileFolderInfo CreateBoxFolder(Guid refNoteID, UserTokenHandler tokenHandler)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID));
+            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null)
             {
@@ -617,38 +619,64 @@ namespace PX.SM.BoxStorageProvider
                 if (bfcParent == null) throw new PXException(Messages.ScreenMainFolderDoesNotExist, siteMapNode.ScreenID);
 
                 BoxFolderSublevelCache sublevelFolder = null;
+                string parentFolderID = string.Empty;
                 if (FieldsGroupingByScreenID.Select(siteMapNode.ScreenID).Any())
                 {
-                    //Get/Create sub level folder
-                    var subLevelGrouping = GetSublevelName(refNoteID);
-                    if (string.IsNullOrEmpty(subLevelGrouping))
-                    {
-                        TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
-                    }
-
-                    sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Select(siteMapNode.ScreenID, subLevelGrouping);
-                    if (sublevelFolder == null)
-                    {
-                        var subLevelFolderInfo = GetOrCreateFolder(tokenHandler, bfcParent.FolderID, null, null, subLevelGrouping);
-
-                        sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Cache.CreateInstance();
-                        sublevelFolder.FolderID = subLevelFolderInfo.ID;
-                        sublevelFolder.Grouping = subLevelGrouping;
-                        sublevelFolder.ScreenID = siteMapNode.ScreenID;
-                        SubLevelByScreenAndGrouping.Insert(sublevelFolder);
-                    }
+                    parentFolderID = GetOrCreateSublevelFolder(tokenHandler, siteMapNode.ScreenID, bfcParent.FolderID, refNoteID);
+                }
+                else
+                {
+                    parentFolderID = bfcParent.FolderID;
                 }
 
-                var parentFolderID = sublevelFolder?.FolderID ?? bfcParent.FolderID;
                 return GetOrCreateFolderForEntity(tokenHandler, parentFolderID, entityRow, refNoteID);
             }
         }
 
-        private static void TraceAndThrowException(string message, params object[] args)
+        private string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID)
         {
-            var exception = new PXException(PXLocalizer.Localize(message), args);
-            PXTrace.WriteError(exception);
-            throw exception;
+            BoxFolderSublevelCache sublevelFolder;
+            var subLevelGrouping = GetSublevelName(refNoteID);
+            if (string.IsNullOrEmpty(subLevelGrouping))
+            {
+                TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
+            }
+
+            sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Select(screenID, subLevelGrouping);
+            if (sublevelFolder == null)
+            {
+                var subLevelFolderInfo = GetOrCreateFolder(tokenHandler, parentFolderID, null, null, subLevelGrouping);
+
+                sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Cache.CreateInstance();
+                sublevelFolder.FolderID = subLevelFolderInfo.ID;
+                sublevelFolder.Grouping = subLevelGrouping;
+                sublevelFolder.ScreenID = screenID;
+                SubLevelByScreenAndGrouping.Insert(sublevelFolder);
+            }
+            else
+            {
+                try
+                {
+                    // Folder was found in BoxFolderCache, retrieve it by ID
+                    var sublevelFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, sublevelFolder.FolderID).Result;
+                }
+                catch (AggregateException ae)
+                {
+                    HandleAggregateException(ae, (exception) =>
+                    {
+                        using (new PXConnectionScope())
+                        {
+                            // Delete entry from BoxFolderCache so that it gets created again.
+                            SubLevelByScreenAndGrouping.Delete(sublevelFolder);
+                            Actions.PressSave();
+
+                            throw new PXException(Messages.BoxFolderNotFoundTryAgain, sublevelFolder.FolderID, exception);
+                        }
+                    });
+                }
+            }
+
+            return sublevelFolder.FolderID;
         }
 
         private BoxUtils.FileFolderInfo GetOrCreateActivityFolder(Guid refNoteID, UserTokenHandler tokenHandler, object entityRow, object activityRefNoteID)
@@ -769,5 +797,13 @@ namespace PX.SM.BoxStorageProvider
                 return false;
             });
         }
+
+        private static void TraceAndThrowException(string message, params object[] args)
+        {
+            var exception = new PXException(PXLocalizer.Localize(message), args);
+            PXTrace.WriteError(exception);
+            throw exception;
+        }
+
     }
 }
