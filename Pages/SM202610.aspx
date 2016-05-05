@@ -4,7 +4,7 @@
 
 <%@ MasterType VirtualPath="~/MasterPages/FormView.master" %>
 <asp:Content ID="cont1" ContentPlaceHolderID="phDS" runat="Server">
-    <px:PXDataSource ID="ds" Width="100%" runat="server" Visible="True" PrimaryView="User" TypeName="PX.SM.BoxStorageProvider.UserProfile" PageLoadBehavior="GoFirstRecord">
+    <px:PXDataSource ID="ds" runat="server" Visible="True" PrimaryView="User" TypeName="PX.SM.BoxStorageProvider.UserProfile" PageLoadBehavior="GoFirstRecord" SuspendUnloading="False">
         <CallbackCommands>
             <px:PXDSCallbackCommand Name="Cancel" Visible="False" />
             <px:PXDSCallbackCommand CommitChanges="True" Name="Login" StartNewGroup="True" />

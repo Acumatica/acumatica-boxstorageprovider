@@ -95,3 +95,17 @@ CREATE TABLE [dbo].[BoxScreenGroupingFields](
 ) ON [PRIMARY]
 GO
 
+CREATE TABLE [dbo].[BoxFolderSublevelCache](
+	[CompanyID] [int] NOT NULL,
+	[ScreenID] [varchar](8) NOT NULL,
+	[Grouping] [nvarchar](256) NOT NULL,
+	[FolderID] [nvarchar](256) NOT NULL
+ CONSTRAINT [BoxFolderSublevelCache_PK] PRIMARY KEY CLUSTERED 
+(
+	[CompanyID] ASC,
+	[ScreenID] ASC,
+	[Grouping] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
