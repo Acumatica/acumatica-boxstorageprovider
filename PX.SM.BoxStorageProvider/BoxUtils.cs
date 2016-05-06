@@ -23,6 +23,7 @@ namespace PX.SM.BoxStorageProvider
         {
             Unlimited = 0,
             NoDepth = 1,
+            FirstSubLevel = 2
         }
 
         //System will do paging if folder contains more than 1000 files
