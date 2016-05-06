@@ -11,7 +11,7 @@ public partial class Pages_SM_SM202640 : PXPage
         var graph = PXGraph.CreateInstance<FileHandler>();
         try
         {
-            BoxFolderCache relatedFolder = graph.ParentFolderByFileID.Select(Request.QueryString["itemID"]);
+            BoxFolderCache relatedFolder = graph.FoldersByFolderID.Select(Request.QueryString["itemID"]);
             new EntityHelper(graph).NavigateToRow(relatedFolder.RefNoteID, PXRedirectHelper.WindowMode.Same);
         }
         catch (PXRedirectRequiredException ex)
