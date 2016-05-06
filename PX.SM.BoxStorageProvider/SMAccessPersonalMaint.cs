@@ -12,7 +12,7 @@ namespace PX.SM.BoxStorageProvider
         [PXButton()]
         public void RedirectToBoxUserProfile()
         {
-            throw new PXRedirectToUrlException("~/Pages/SM/SM202610.aspx", PXLocalizer.Localize(Messages.BoxUserProfile));
+            throw new PXRedirectToUrlException("~/Pages/SM/SM202610.aspx", Messages.BoxUserProfile);
         }
   }
 }

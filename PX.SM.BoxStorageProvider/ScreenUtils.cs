@@ -40,5 +40,26 @@ namespace PX.SM.BoxStorageProvider
 
             primaryView.Cache.Current = current;
         }
+
+        //From PX.Api.OData.Model.GIDataService
+        public static object UnwrapValue(object value)
+        {
+            PXFieldState state = value as PXFieldState;
+            if (state != null)
+            {
+                if (state.Value == null && state.DefaultValue != null) // for a case when field has PXDefault attribute, but null value because of inconsistency in DB
+                    state.Value = state.DefaultValue;
+                if (state.Value != null && !state.DataType.IsInstanceOfType(state.Value)) // for a case when, for example, some field of int type has PXSelectorAttribute with substitute field of string type, and PXSelectorAttribute can't find corresponding row for substitute field
+                    state.Value = Convert.ChangeType(state.Value, state.DataType);
+            }
+
+            PXStringState strState = value as PXStringState;
+            if (strState != null && strState.Value != null && strState.ValueLabelDic != null && strState.ValueLabelDic.ContainsKey((string)strState.Value))
+                return strState.ValueLabelDic[(string)strState.Value];
+            PXIntState intState = value as PXIntState;
+            if (intState != null && intState.Value != null && intState.ValueLabelDic != null)
+                return intState.ValueLabelDic.ContainsKey((int)intState.Value) ? intState.ValueLabelDic[(int)intState.Value] : intState.Value.ToString();
+            return PXFieldState.UnwrapValue(value);
+        }
     }
 }

@@ -37,11 +37,6 @@ namespace PX.SM.BoxStorageProvider
                 And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
             InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
 
-        //Retrieve the parent folder of the specified fileID
-        public PXSelectJoin<BoxFolderCache,
-                InnerJoin<BoxFileCache, On<BoxFileCache.parentFolderID, Equal<BoxFolderCache.folderID>>>,
-            Where<BoxFileCache.fileID, Equal<Required<BoxFileCache.fileID>>>> ParentFolderByFileID;
-
         public PXSelect<BoxFolderSublevelCache,
             Where<BoxFolderSublevelCache.screenID, Equal<Required<BoxFolderSublevelCache.screenID>>,
                 And<BoxFolderSublevelCache.grouping, Equal<Required<BoxFolderSublevelCache.grouping>>>>> SubLevelByScreenAndGrouping;
@@ -629,14 +624,16 @@ namespace PX.SM.BoxStorageProvider
             {
                 return null;
             }
+
             var screenID = PXSiteMap.Provider.FindSiteMapNode(primaryGraphType).ScreenID;
+            PXCache entityCache = this.Caches[entityRow.GetType()];
 
             var folderNameBuilder = new StringBuilder();
             var fieldGroupings = FieldsGroupingByScreenID.Select(screenID).Select(x => (BoxScreenGroupingFields)x);
             foreach (var field in fieldGroupings)
             {
-                var value = entityRow.GetType().GetProperty(field.FieldName)?.GetValue(entityRow);
-                folderNameBuilder.Append(value).Append(' ');
+                var value = entityCache.GetStateExt(entityRow,  field.FieldName);
+                folderNameBuilder.Append(ScreenUtils.UnwrapValue(value)).Append(' ');
             }
 
             return folderNameBuilder.ToString().Trim();
@@ -866,7 +863,7 @@ namespace PX.SM.BoxStorageProvider
 
         private static void TraceAndThrowException(string message, params object[] args)
         {
-            var exception = new PXException(PXLocalizer.Localize(message), args);
+            var exception = new PXException(message, args);
             PXTrace.WriteError(exception);
             throw exception;
         }
