@@ -1,11 +1,10 @@
-﻿using System;
+﻿using Box.V2.Exceptions;
+using PX.Data;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using PX.Data;
-using System.Web.Compilation;
-using PX.Data.Description;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -60,6 +59,35 @@ namespace PX.SM.BoxStorageProvider
             if (intState != null && intState.Value != null && intState.ValueLabelDic != null)
                 return intState.ValueLabelDic.ContainsKey((int)intState.Value) ? intState.ValueLabelDic[(int)intState.Value] : intState.Value.ToString();
             return PXFieldState.UnwrapValue(value);
+        }
+
+        public static void HandleAggregateException(AggregateException aggregateException, HttpStatusCode codeToHandle, Action<Exception> action)
+        {
+            aggregateException.Handle((e) =>
+            {
+                PXTrace.WriteError(e);
+                var boxException = e as BoxException;
+                if (boxException != null && boxException.StatusCode == codeToHandle)
+                {
+                    action(e);
+                    return true;
+                }
+
+                return false;
+            });
+        }
+
+        public static void TraceAndThrowException(string message, params object[] args)
+        {
+            var exception = new PXException(message, args);
+            PXTrace.WriteError(exception);
+            throw exception;
+        }
+
+        public static bool IsMatchingActivitiesFolderRegex(string text)
+        {
+            var regex = new Regex($@"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}\\");
+            return regex.IsMatch(text);
         }
     }
 }

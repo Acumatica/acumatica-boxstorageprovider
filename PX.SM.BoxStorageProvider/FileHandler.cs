@@ -71,7 +71,7 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                HandleAggregateException(ae, (exception) =>
+                ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                 {
                     throw new PXException(Messages.BoxFileNotFound, exception);
                 });
@@ -91,7 +91,7 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                HandleAggregateException(ae, (exception) =>
+                ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                 {
                     throw new PXException(Messages.FileNotFoundInBox, bfc.FileID, exception);
                 });
@@ -132,7 +132,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    HandleAggregateException(ae, exception =>
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, exception =>
                     {
                         using (new PXConnectionScope())
                         {
@@ -142,7 +142,7 @@ namespace PX.SM.BoxStorageProvider
                             Actions.PressSave();
                         }
 
-                        TraceAndThrowException(Messages.BoxFolderNotFoundRunSynchAgain, boxFolderID);
+                        ScreenUtils.TraceAndThrowException(Messages.BoxFolderNotFoundRunSynchAgain, boxFolderID);
                     });
                 }
 
@@ -206,7 +206,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    HandleAggregateException(ae, (exception) =>
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                     {
                         using (new PXConnectionScope())
                         {
@@ -239,7 +239,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    HandleAggregateException(ae, (exception) =>
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                     {
                         // Folder no longer exist on Box - it may have been deleted on purpose by the user. Remove it from cache so it is recreated on the next run.
                         screenFolderInfo = FoldersByScreen.Delete(screenFolderInfo);
@@ -299,7 +299,7 @@ namespace PX.SM.BoxStorageProvider
                     }
                     catch (AggregateException ae)
                     {
-                        HandleAggregateException(ae, (_) =>
+                        ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                         {
 
                             // Folder no longer exist on Box - it may have been deleted on purpose by the user
@@ -341,12 +341,11 @@ namespace PX.SM.BoxStorageProvider
             }
 
             // Remove any files/folders coming from activities stored beneath the current record, they've been processed above
-            var regex = new Regex($@"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}\\");
-            var filesFoundOnlyOnServer = boxFileList.Where(x => !regex.IsMatch(x.Name)).ToList();
+            var filesFoundOnlyOnServer = boxFileList.Where(x => !ScreenUtils.IsMatchingActivitiesFolderRegex(x.Name)).ToList();
 
             //Check for underlying activities records
             BoxFolderCache currentFolder = FoldersByFolderID.Select(folderID);
-            if (currentFolder != null && boxFileList.Any(x => regex.IsMatch(x.Name)))
+            if (currentFolder != null && boxFileList.Any(x => ScreenUtils.IsMatchingActivitiesFolderRegex(x.Name)))
             {
                 // If nullOrEmpty, Folder may have been created manually
                 if (string.IsNullOrEmpty(currentFolder.ActivityFolderID))
@@ -646,11 +645,11 @@ namespace PX.SM.BoxStorageProvider
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null)
             {
-                TraceAndThrowException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
+                ScreenUtils.TraceAndThrowException(Messages.PrimaryGraphForNoteIDNotFound, refNoteID);
             }
             if (entityRow == null)
             {
-                TraceAndThrowException(Messages.EntityRowForNoteIDNotFound, refNoteID);
+                ScreenUtils.TraceAndThrowException(Messages.EntityRowForNoteIDNotFound, refNoteID);
             }
 
             object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
@@ -688,13 +687,13 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        private string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID)
+        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID)
         {
             BoxFolderSublevelCache sublevelFolder;
             var subLevelGrouping = GetSublevelName(refNoteID);
             if (string.IsNullOrEmpty(subLevelGrouping))
             {
-                TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
+                ScreenUtils.TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
             }
 
             sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Select(screenID, subLevelGrouping);
@@ -717,7 +716,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    HandleAggregateException(ae, (exception) =>
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                     {
                         using (new PXConnectionScope())
                         {
@@ -762,7 +761,7 @@ namespace PX.SM.BoxStorageProvider
                 }
                 catch (AggregateException ae)
                 {
-                    HandleAggregateException(ae, (exception) =>
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                     {
                         using (new PXConnectionScope())
                         {
@@ -816,7 +815,7 @@ namespace PX.SM.BoxStorageProvider
             }
             catch (AggregateException ae)
             {
-                HandleAggregateException(ae, (exception) =>
+                ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) =>
                 {
                     using (new PXConnectionScope())
                     {
@@ -845,28 +844,7 @@ namespace PX.SM.BoxStorageProvider
             return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
         }
 
-        private static void HandleAggregateException(AggregateException aggregateException, Action<Exception> action)
-        {
-            aggregateException.Handle((e) =>
-            {
-                PXTrace.WriteError(e);
-                var boxException = e as BoxException;
-                if (boxException != null && boxException.StatusCode == HttpStatusCode.NotFound)
-                {
-                    action(e);
-                    return true;
-                }
-
-                return false;
-            });
-        }
-
-        private static void TraceAndThrowException(string message, params object[] args)
-        {
-            var exception = new PXException(message, args);
-            PXTrace.WriteError(exception);
-            throw exception;
-        }
+        
 
     }
 }

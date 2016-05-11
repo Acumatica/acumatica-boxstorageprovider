@@ -5,7 +5,8 @@ using PX.Data;
 using PX.Api;
 using System.Web.Compilation;
 using System.Linq;
-
+using System.Threading.Tasks;
+using System.Net;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -13,6 +14,7 @@ namespace PX.SM.BoxStorageProvider
     {
         public PXSelect<BoxScreenConfiguration> Screens;
         public PXSelect<BoxScreenGroupingFields, Where<BoxScreenGroupingFields.screenID, Equal<Current<BoxScreenConfiguration.screenID>>>> Fields;
+        public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByRefNoteID;
         public PXSelectSiteMapTree<False, False, False, False, False> SiteMap;
 
         protected virtual void BoxScreenConfiguration_RowSelected(PXCache sender, PXRowSelectedEventArgs e)
@@ -36,6 +38,58 @@ namespace PX.SM.BoxStorageProvider
                 var values = fields.Select(x => x.Name).ToArray();
                 PXStringListAttribute.SetList<BoxScreenGroupingFields.fieldName>(Fields.Cache, null, values, labels);
             }
+        }
+
+        public PXAction<BoxScreenConfiguration> MoveFolders;
+        [PXButton(ConfirmationType = PXConfirmationType.Always, ConfirmationMessage = "Are you sure you want to rearrange your folders ?")]
+        [PXUIField(DisplayName = "Move folders")]
+        protected virtual void moveFolders()
+        {
+            var fileHandlerGraph = PXGraph.CreateInstance<FileHandler>();
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+
+            PXLongOperation.StartOperation(this, () =>
+            {
+                var screenFolderCache = (BoxFolderCache)fileHandlerGraph.FoldersByScreen.Select(Screens.Current.ScreenID);
+
+                //For each subfolders of a screen found on box server
+                List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
+                foreach(var folder in list)
+                {
+                    //Skip activities folders
+                    if(folder.Name.Contains(PXLocalizer.Localize(Messages.ActivitiesFolderName)))
+                    {
+                        continue;
+                    }
+
+                    //If folder has a RefNoteID, it contains files and might need to be moved
+                    BoxFolderCache bfc = (BoxFolderCache) fileHandlerGraph.FoldersByFolderID.Select(folder.ID);
+                    if(bfc != null && bfc.RefNoteID.HasValue)
+                    {
+                        var presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value);
+                        //if nested under the wrong folder
+                        if (folder.ParentFolderID != presumedParentFolderID)
+                        {
+                            try
+                            {
+                                BoxUtils.MoveFolder(tokenHandler, folder.ID, presumedParentFolderID).Wait();
+                                bfc.ParentFolderID = presumedParentFolderID;
+                                fileHandlerGraph.FoldersByFolderID.Update(bfc);
+                                fileHandlerGraph.Actions.PressSave();
+                            }
+                            catch (AggregateException ae)
+                            {
+                                ScreenUtils.HandleAggregateException(ae, HttpStatusCode.Conflict, (exception) => {
+                                    //Skip this folder if a name conflict happens
+                                });
+
+                                continue;
+                            }
+                        }
+                    }
+                }
+            });
+
         }
     }
 }
