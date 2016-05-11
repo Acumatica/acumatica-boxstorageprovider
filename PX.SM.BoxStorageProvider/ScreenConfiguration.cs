@@ -33,9 +33,9 @@ namespace PX.SM.BoxStorageProvider
                 string primaryViewName = PXPageIndexingService.GetPrimaryView(graphTypeName);
                 PXView view = graph.Views[primaryViewName];
 
+                //Construct ddl values and displayed values, specifying field name for duplicates
                 var fieldsArray = PXFieldState.GetFields(graph, view.BqlSelect.GetTables(), true);
                 var displayNames = fieldsArray.GroupBy(fa => fa.DisplayName).ToDictionary(k => k.Key, v => v.ToList());
-
                 var labels = new List<string>();
                 var values = new List<string>();
                 foreach (var displayName in displayNames)
