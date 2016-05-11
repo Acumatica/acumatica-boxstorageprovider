@@ -32,10 +32,10 @@
                     <px:PXDropDown ID="fieldDdlID" runat="server" DataField="FieldName" />
                 </RowTemplate>
                 <Columns>
-                    <px:PXGridColumn AllowNull="False" DataField="FieldName" TextAlign="Center" Width="150px" />
+                    <px:PXGridColumn AllowNull="False" DataField="FieldName" TextAlign="Left" Width="150px" />
                 </Columns>
             </px:PXGridLevel>
         </Levels>
-        <AutoSize Enabled="True" MinHeight="150" />
+        <AutoSize Container="Window" Enabled="True" MinHeight="150" />
     </px:PXGrid>
 </asp:Content>

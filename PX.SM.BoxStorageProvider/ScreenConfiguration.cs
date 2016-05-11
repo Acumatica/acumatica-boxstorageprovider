@@ -33,10 +33,30 @@ namespace PX.SM.BoxStorageProvider
                 string primaryViewName = PXPageIndexingService.GetPrimaryView(graphTypeName);
                 PXView view = graph.Views[primaryViewName];
 
-                var fields = PXFieldState.GetFields(graph, view.BqlSelect.GetTables(), true);
-                var labels = fields.Select(x => x.DisplayName).ToArray();
-                var values = fields.Select(x => x.Name).ToArray();
-                PXStringListAttribute.SetList<BoxScreenGroupingFields.fieldName>(Fields.Cache, null, values, labels);
+                var fieldsArray = PXFieldState.GetFields(graph, view.BqlSelect.GetTables(), true);
+                var displayNames = fieldsArray.GroupBy(fa => fa.DisplayName).ToDictionary(k => k.Key, v => v.ToList());
+
+                var labels = new List<string>();
+                var values = new List<string>();
+                foreach (var displayName in displayNames)
+                {
+                    if (displayName.Value.Count > 1)
+                    {
+                        foreach (var displayNameField in displayName.Value)
+                        {
+                            labels.Add($"{displayName.Key} ({displayNameField.Name})");
+                            values.Add(displayName.Key);
+                        }
+                    }
+                    else
+                    {
+                        labels.Add(displayName.Key);
+                        values.Add(displayName.Key);
+                    }
+
+                }
+
+                PXStringListAttribute.SetList<BoxScreenGroupingFields.fieldName>(Fields.Cache, null, values.ToArray(), labels.ToArray());
             }
         }
 
