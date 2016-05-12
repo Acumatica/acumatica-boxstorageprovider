@@ -12,7 +12,8 @@ namespace PX.SM.BoxStorageProvider
         [PXButton()]
         public void RedirectToBoxUserProfile()
         {
-            throw new PXRedirectToUrlException("~/Pages/SM/SM202610.aspx", Messages.BoxUserProfile);
+            var graph = PXGraph.CreateInstance<UserProfile>();
+            PXRedirectHelper.TryRedirect(graph, PXRedirectHelper.WindowMode.Same);
         }
   }
 }
