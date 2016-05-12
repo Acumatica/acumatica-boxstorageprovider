@@ -26,14 +26,7 @@ public partial class Pages_SM_SM202615 : System.Web.UI.Page
     private void ProcessAuthorizationCode(string userID, string code)
     {
         var graph = PXGraph.CreateInstance<UserProfile>();
-        BoxUserTokens currentUser = PXCache<BoxUserTokens>.CreateCopy(graph.User.Select());
-        if (currentUser.UserID != Guid.Parse(userID)) throw new PXException("UserID mismatch.");
-
-        var session = BoxUtils.CompleteAuthorization(code).Result;
-        currentUser.AccessToken = session.AccessToken;
-        currentUser.RefreshToken = session.RefreshToken;
-        currentUser.RefreshTokenDate = PXTimeZoneInfo.Now;
-        graph.User.Update(currentUser);
-        graph.Actions.PressSave();
+        var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
+        BoxUtils.CompleteAuthorization(tokenHandler, code).Wait();
     }
 }

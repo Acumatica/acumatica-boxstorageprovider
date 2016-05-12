@@ -3,102 +3,113 @@ using System.Collections;
 using System.Collections.Generic;
 using PX.Data;
 using PX.Api;
+using System.Web.Compilation;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Net;
 
 namespace PX.SM.BoxStorageProvider
 {
-    public class ScreenConfiguration : PXGraph<ScreenConfiguration>
+    public class ScreenConfiguration : PXGraph<ScreenConfiguration, BoxScreenConfiguration>
     {
-        public PXSave<Screen> Save;
-        public PXCancel<Screen> Cancel;
-        public PXSelect<Screen> Screens;
+        public PXSelect<BoxScreenConfiguration> Screens;
+        public PXSelect<BoxScreenGroupingFields, Where<BoxScreenGroupingFields.screenID, Equal<Current<BoxScreenConfiguration.screenID>>>> Fields;
+        public PXSelect<BoxFolderCache, Where<BoxFolderCache.refNoteID, Equal<Required<BoxFolderCache.refNoteID>>>> FoldersByRefNoteID;
+        public PXSelectSiteMapTree<False, False, False, False, False> SiteMap;
 
-        public ScreenConfiguration()
+        protected virtual void BoxScreenConfiguration_RowSelected(PXCache sender, PXRowSelectedEventArgs e)
         {
-        }
-
-        public virtual IEnumerable screens()
-        {
-            bool found = false;
-            foreach (Screen item in this.Screens.Cache.Inserted)
+            var screenConfig = e.Row as BoxScreenConfiguration;
+            if (!string.IsNullOrEmpty(screenConfig.ScreenID))
             {
-                found = true;
-                yield return item;
-            }
-            if (found)
-                yield break;
-            
-            foreach (Screen screen in GetAllScreensWithAttachmentsSupport(this))
-            {
-                yield return Screens.Insert(screen);
-            }
-
-            Screens.Cache.IsDirty = false;
-        }
-
-        public static IEnumerable GetAllScreensWithAttachmentsSupport(PXGraph graph)
-        {
-            foreach (SiteMap item in PXSelectGroupBy<SiteMap, Where<SiteMap.screenID, IsNotNull>, Aggregate<GroupBy<SiteMap.screenID>>>.Select(graph))
-            {
-                if (ScreenPrimaryViewSupportsAttachments(graph, item.ScreenID))
+                string graphTypeName = PXPageIndexingService.GetGraphTypeByScreenID(screenConfig.ScreenID);
+                if (string.IsNullOrEmpty(graphTypeName))
                 {
-                    yield return new Screen
+                    throw new PXException(Messages.PrimaryGraphForScreenIDNotFound, screenConfig.ScreenID);
+                }
+                Type graphType = PXBuildManager.GetType(graphTypeName, true);
+                var graph = PXGraph.CreateInstance(graphType);
+
+                string primaryViewName = PXPageIndexingService.GetPrimaryView(graphTypeName);
+                PXView view = graph.Views[primaryViewName];
+
+                //Construct ddl values and displayed values, specifying field name for duplicates
+                var fieldsArray = PXFieldState.GetFields(graph, view.BqlSelect.GetTables(), true);
+                var displayNames = fieldsArray.GroupBy(fa => fa.DisplayName).ToDictionary(k => k.Key, v => v.ToList());
+                var labels = new List<string>();
+                var values = new List<string>();
+                foreach (var displayName in displayNames)
+                {
+                    if (displayName.Value.Count > 1)
                     {
-                        ScreenID = item.ScreenID,
-                        Name = item.Title
-                    };
-                }
-            }
+                        foreach (var displayNameField in displayName.Value)
+                        {
+                            labels.Add($"{displayName.Key} ({displayNameField.Name})");
+                            values.Add(displayName.Key);
+                        }
+                    }
+                    else
+                    {
+                        labels.Add(displayName.Key);
+                        values.Add(displayName.Key);
+                    }
 
-            yield return new Screen
-            {
-                ScreenID = FileHandler.MiscellaneousFolderScreenId,
-                Name = Messages.MiscellaneousFilesFolderName,
-            };
+                }
+
+                PXStringListAttribute.SetList<BoxScreenGroupingFields.fieldName>(Fields.Cache, null, values.ToArray(), labels.ToArray());
+            }
         }
 
-        private static bool ScreenPrimaryViewSupportsAttachments(PXGraph graph, string screenID)
+        public PXAction<BoxScreenConfiguration> MoveFolders;
+        [PXButton(ConfirmationType = PXConfirmationType.Always, ConfirmationMessage = "Are you sure you want to rearrange your folders ?")]
+        [PXUIField(DisplayName = "Move folders")]
+        protected virtual void moveFolders()
         {
-            string graphType = PXPageIndexingService.GetGraphTypeByScreenID(screenID);
-            if (string.IsNullOrEmpty(graphType)) return false;
+            var fileHandlerGraph = PXGraph.CreateInstance<FileHandler>();
+            var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
-            string primaryViewName = PXPageIndexingService.GetPrimaryView(graphType);
-            if (string.IsNullOrEmpty(primaryViewName)) return false;
-
-            PXViewInfo view = GraphHelper.GetGraphView(graphType, primaryViewName);
-            if (view == null) return false;
-
-            PXCache cache = graph.Caches[view.Cache.CacheType];
-            if (cache == null) return false;
-
-            foreach (System.Reflection.PropertyInfo prop in cache.GetItemType().GetProperties())
+            PXLongOperation.StartOperation(this, () =>
             {
-                if (prop.IsDefined(typeof(PXNoteAttribute), true))
+                var screenFolderCache = (BoxFolderCache)fileHandlerGraph.FoldersByScreen.Select(Screens.Current.ScreenID);
+
+                //For each subfolders of a screen found on box server
+                List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
+                foreach(var folder in list)
                 {
-                    return true;
+                    //Skip activities folders
+                    if(folder.Name.Contains(PXLocalizer.Localize(Messages.ActivitiesFolderName)))
+                    {
+                        continue;
+                    }
+
+                    //If folder has a RefNoteID, it contains files and might need to be moved
+                    BoxFolderCache bfc = (BoxFolderCache) fileHandlerGraph.FoldersByFolderID.Select(folder.ID);
+                    if(bfc != null && bfc.RefNoteID.HasValue)
+                    {
+                        var presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value);
+                        //if nested under the wrong folder
+                        if (folder.ParentFolderID != presumedParentFolderID)
+                        {
+                            try
+                            {
+                                BoxUtils.MoveFolder(tokenHandler, folder.ID, presumedParentFolderID).Wait();
+                                bfc.ParentFolderID = presumedParentFolderID;
+                                fileHandlerGraph.FoldersByFolderID.Update(bfc);
+                                fileHandlerGraph.Actions.PressSave();
+                            }
+                            catch (AggregateException ae)
+                            {
+                                ScreenUtils.HandleAggregateException(ae, HttpStatusCode.Conflict, (exception) => {
+                                    //Skip this folder if a name conflict happens
+                                });
+
+                                continue;
+                            }
+                        }
+                    }
                 }
-            }
+            });
 
-            return false;
         }
-    }
-
-    [Serializable]
-    public partial class Screen : IBqlTable
-    {
-        public abstract class selected : IBqlField { }
-        [PXBool]
-        [PXDefault(false)]
-        [PXUIField(DisplayName = "Selected", Visibility = PXUIVisibility.Visible)]
-        public bool? Selected { get; set; }
-
-        public abstract class screenID : IBqlField { }
-        [PXString(8, IsKey = true, IsUnicode = false)]
-        [PXUIField(DisplayName = "Screen ID", Enabled = false)]
-        public virtual string ScreenID { get; set; }
-
-        public abstract class name : IBqlField { }
-        [PXString(255)]
-        [PXUIField(DisplayName = "Name", Enabled = false)]
-        public virtual string Name { get; set; }
     }
 }
