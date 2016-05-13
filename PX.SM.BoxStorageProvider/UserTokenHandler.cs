@@ -23,6 +23,7 @@ namespace PX.SM.BoxStorageProvider
             // We use a separate connection to ensure that the token gets persisted to the DB, regardless of any transaction rollback.
             // It could potentially happen that the token needs to get refreshed while a file is uploaded, but that this upload ultimately gets rolled back due to another
             // error later during the caller graph persisting process. If we use the current connection scope we have no control over this update.
+
             using (new PXConnectionScope())
             {
                 BoxUserTokens currentUser = PXCache<BoxUserTokens>.CreateCopy(GetCurrentUser());
@@ -40,7 +41,6 @@ namespace PX.SM.BoxStorageProvider
             using (new PXConnectionScope())
             {
                 BoxUserTokens currentUser = GetCurrentUser();
-
                 if (currentUser != null)
                 {
                     currentUser = PXCache<BoxUserTokens­>.CreateCopy(currentUser);
@@ -49,7 +49,6 @@ namespace PX.SM.BoxStorageProvider
                     Caches[typeof(BoxUserTokens)].Update(currentUser);
                     Caches[typeof(BoxUserTokens)].Persist(PXDBOperation.Update);
                 }
-
             }
 
             throw new PXException(Messages.BoxUserNotFoundOrTokensExpired);

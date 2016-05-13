@@ -45,13 +45,13 @@ namespace PX.SM.BoxStorageProvider
                         foreach (var displayNameField in displayName.Value)
                         {
                             labels.Add($"{displayName.Key} ({displayNameField.Name})");
-                            values.Add(displayName.Key);
+                            values.Add(displayNameField.Name);
                         }
                     }
                     else
                     {
                         labels.Add(displayName.Key);
-                        values.Add(displayName.Key);
+                        values.Add(displayName.Value.FirstOrDefault()?.Name);
                     }
 
                 }
@@ -72,8 +72,20 @@ namespace PX.SM.BoxStorageProvider
             {
                 var screenFolderCache = (BoxFolderCache)fileHandlerGraph.FoldersByScreen.Select(Screens.Current.ScreenID);
 
+                var list = new List<BoxUtils.FileFolderInfo>();
                 //For each subfolders of a screen found on box server
-                List<BoxUtils.FileFolderInfo> list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
+                try
+                {
+                    list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
+
+                }
+                catch(AggregateException ae)
+                {
+                    ScreenUtils.HandleAggregateException(ae, HttpStatusCode.NotFound, (exception) => {
+                        ScreenUtils.TraceAndThrowException(Messages.BoxFolderNotFoundRunSynchAgain, screenFolderCache.FolderID);
+                    });
+                }
+
                 foreach(var folder in list)
                 {
                     //Skip activities folders
