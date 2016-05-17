@@ -560,8 +560,17 @@ namespace PX.SM.BoxStorageProvider
 
             var viewDescription = new Data.Description.PXViewDescription(primaryViewName);
 
+            KeyValuePair<string, string>[] keyValuePairs;
             var graph = PXGraph.CreateInstance(PXBuildManager.GetType(graphType, true));
-            var keyValuePairs = GetKeyValuePairsFromKeyValues(graph, primaryViewName, keyValues);
+            try
+            {
+                keyValuePairs = GetKeyValuePairsFromKeyValues(graph, primaryViewName, keyValues);
+            }
+            catch
+            {
+                return null;
+            }
+
             var view = graph.Views[primaryViewName];
             ScreenUtils.SelectCurrent(view, viewDescription, keyValuePairs);
 
@@ -581,7 +590,9 @@ namespace PX.SM.BoxStorageProvider
             string[] keyValuesArray = keyValues.Split(' ');
 
             if (keyNames.Length != keyValuesArray.Length)
-                throw new PXException(Messages.ErrorExtractingKeyValuesFromFolderName, keyValuesArray.Length, keyValues.Length, viewName);
+            {
+                ScreenUtils.TraceAndThrowException(Messages.ErrorExtractingKeyValuesFromFolderName, keyValuesArray.Length, keyValues.Length, viewName);
+            }
 
             var pairs = new KeyValuePair<string, string>[keyNames.Length];
 
