@@ -37,6 +37,7 @@ namespace PX.SM.BoxStorageProvider
         public const string MiscFolderNotFoundRunSynchAgain = "Miscellaneous Files Folder not found. Please run folder synchronization and try again.";
         public const string BoxUserProfile = "Box User Profile";
         public const string SubLevelConfigurationInvalid = "The sublevel folder name can't be generated. Please verify this screen configuration.";
+        public const string UndefinedGrouping = "Undefined Grouping";
 
         public const string Expired = "Expired";
         public const string Configured = "Configured";

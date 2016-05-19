@@ -64,6 +64,7 @@
     <Compile Include="DAC\BoxUserTokens.cs" />
     <Compile Include="Descriptor\Messages.cs" />
     <Compile Include="FileHandler.cs" />
+    <Compile Include="FolderNameKeyValuesMismatchException.cs" />
     <Compile Include="ScreenConfiguration.cs" />
     <Compile Include="SMAccessPersonalMaint.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

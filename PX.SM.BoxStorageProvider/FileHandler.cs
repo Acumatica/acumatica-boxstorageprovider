@@ -566,7 +566,7 @@ namespace PX.SM.BoxStorageProvider
             {
                 keyValuePairs = GetKeyValuePairsFromKeyValues(graph, primaryViewName, keyValues);
             }
-            catch
+            catch(FolderNameKeyValuesMismatchException)
             {
                 return null;
             }
@@ -587,11 +587,19 @@ namespace PX.SM.BoxStorageProvider
         private KeyValuePair<string, string>[] GetKeyValuePairsFromKeyValues(PXGraph graph, string viewName, string keyValues)
         {
             string[] keyNames = graph.GetKeyNames(viewName);
-            string[] keyValuesArray = keyValues.Split(' ');
+            string[] keyValuesArray;
+            if (keyNames.Length == 1)
+            {
+                keyValuesArray = new string[1] { keyValues };
+            }
+            else
+            {
+                keyValuesArray = keyValues.Split(' ');
+            }
 
             if (keyNames.Length != keyValuesArray.Length)
             {
-                ScreenUtils.TraceAndThrowException(Messages.ErrorExtractingKeyValuesFromFolderName, keyValuesArray.Length, keyValues.Length, viewName);
+                throw new FolderNameKeyValuesMismatchException(string.Format(Messages.ErrorExtractingKeyValuesFromFolderName, keyValuesArray.Length, keyNames.Length, viewName));
             }
 
             var pairs = new KeyValuePair<string, string>[keyNames.Length];
@@ -612,19 +620,6 @@ namespace PX.SM.BoxStorageProvider
             return providerSettings.Value;
         }
 
-        private string GetScreenID(Guid refNoteID)
-        {
-            EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
-            Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
-            if (primaryGraphType == null || entityRow == null)
-            {
-                return null;
-            }
-
-            return PXSiteMap.Provider.FindSiteMapNode(primaryGraphType).ScreenID;
-        }
-
         private string GetSublevelName(Guid refNoteID)
         {
             EntityHelper entityHelper = new EntityHelper(this);
@@ -640,13 +635,19 @@ namespace PX.SM.BoxStorageProvider
 
             var folderNameBuilder = new StringBuilder();
             var fieldGroupings = FieldsGroupingByScreenID.Select(screenID).Select(x => (BoxScreenGroupingFields)x);
+            if(!fieldGroupings.Any())
+            {
+                return null;
+            }
+
             foreach (var field in fieldGroupings)
             {
                 var value = entityCache.GetStateExt(entityRow,  field.FieldName);
                 folderNameBuilder.Append(ScreenUtils.UnwrapValue(value)).Append(' ');
             }
 
-            return folderNameBuilder.ToString().Trim();
+            var subLevelName = folderNameBuilder.ToString().Trim();
+            return string.IsNullOrEmpty(subLevelName) ? Messages.UndefinedGrouping : subLevelName;
         }
 
         private BoxUtils.FileFolderInfo CreateBoxFolder(Guid refNoteID, UserTokenHandler tokenHandler)

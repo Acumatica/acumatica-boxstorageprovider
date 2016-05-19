@@ -76,7 +76,7 @@ namespace PX.SM.BoxStorageProvider
                 //For each subfolders of a screen found on box server
                 try
                 {
-                    list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.Unlimited).Result;
+                    list = BoxUtils.GetFolderList(tokenHandler, screenFolderCache.FolderID, (int)BoxUtils.RecursiveDepth.FirstSubLevel).Result;
 
                 }
                 catch(AggregateException ae)
@@ -86,19 +86,17 @@ namespace PX.SM.BoxStorageProvider
                     });
                 }
 
-                foreach(var folder in list)
+                foreach (var folder in list)
                 {
-                    //Skip activities folders
-                    if(folder.Name.Contains(PXLocalizer.Localize(Messages.ActivitiesFolderName)))
-                    {
-                        continue;
-                    }
-
                     //If folder has a RefNoteID, it contains files and might need to be moved
                     BoxFolderCache bfc = (BoxFolderCache) fileHandlerGraph.FoldersByFolderID.Select(folder.ID);
                     if(bfc != null && bfc.RefNoteID.HasValue)
                     {
-                        var presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value);
+                        string presumedParentFolderID = screenFolderCache.FolderID;
+                        if (fileHandlerGraph.FieldsGroupingByScreenID.Select(Screens.Current.ScreenID).Any())
+                        {
+                            presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value);
+                        }
                         //if nested under the wrong folder
                         if (folder.ParentFolderID != presumedParentFolderID)
                         {
