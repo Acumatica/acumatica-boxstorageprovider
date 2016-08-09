@@ -124,6 +124,7 @@ namespace PX.SM.BoxStorageProvider
             }
             else
             {
+                CheckForMissingNoteRecord(saveContext);
                 var fileName = BoxUtils.CleanFileOrFolderName(Path.GetFileName(saveContext.FileInfo.Name));
                 string boxFolderID = GetOrCreateBoxFolderForNoteID(saveContext.NoteID.Value);
                 try
@@ -160,6 +161,17 @@ namespace PX.SM.BoxStorageProvider
             Actions.PressSave();
 
             return blobHandlerGuid;
+        }
+
+        private void CheckForMissingNoteRecord(PXBlobStorageContext saveContext)
+        {
+            EntityHelper entityHelper = new EntityHelper(this);
+            Note note = entityHelper.SelectNote(saveContext.NoteID);
+            if (note == null)
+            {
+                PXNoteAttribute.InsertNoteRecord(saveContext.Graph.Views[saveContext.ViewName].Cache, saveContext.NoteID.Value);
+                this.Caches[typeof(Note)].ClearQueryCache();
+            }
         }
 
         public BoxUtils.FileFolderInfo GetBoxFileInfoForFileID(Guid fileID)
@@ -566,7 +578,7 @@ namespace PX.SM.BoxStorageProvider
             {
                 keyValuePairs = GetKeyValuePairsFromKeyValues(graph, primaryViewName, keyValues);
             }
-            catch(FolderNameKeyValuesMismatchException)
+            catch (FolderNameKeyValuesMismatchException)
             {
                 return null;
             }
@@ -635,14 +647,14 @@ namespace PX.SM.BoxStorageProvider
 
             var folderNameBuilder = new StringBuilder();
             var fieldGroupings = FieldsGroupingByScreenID.Select(screenID).Select(x => (BoxScreenGroupingFields)x);
-            if(!fieldGroupings.Any())
+            if (!fieldGroupings.Any())
             {
                 return null;
             }
 
             foreach (var field in fieldGroupings)
             {
-                var value = entityCache.GetStateExt(entityRow,  field.FieldName);
+                var value = entityCache.GetStateExt(entityRow, field.FieldName);
                 folderNameBuilder.Append(ScreenUtils.UnwrapValue(value)).Append(' ');
             }
 
@@ -856,7 +868,7 @@ namespace PX.SM.BoxStorageProvider
             return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
         }
 
-        
+
 
     }
 }
