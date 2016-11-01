@@ -43,7 +43,7 @@ On success you should see a screen similar to this one :
  
 Go to Configuration > Document Management > Box > Folder Synchronisation and click the Process All button.
 
-![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/screenConfig.png "")
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/synch.png "")
 The two checkboxes are optional.
 Force Update Folders Description: Use the universal index data to set a folder description on existing box folder.
 Force Rescan Folder: Force synchronisation between Box folders and screen documents even if no changes are detected.
@@ -58,7 +58,7 @@ The Screen Configuration screen is used to configure the folder hierarchy that w
 2.	Choose the fields that will be used as levels for the Box account folder hierarchy
 3.	Click Move Folders button to move existing items to the new folder hierarchy
 
-![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/synch.png "")
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/screenConfig.png "")
 
 Known Issues
 ------------
