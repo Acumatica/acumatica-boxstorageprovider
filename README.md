@@ -25,16 +25,25 @@ Import and publish the customization package.
 2. Choose Box.com Storage from the Provider drop down list
 3. Enter the name of the root folder found in your Box account, e.g. Acumatica, and then Save
 4. Click on enable provider and then click on switch direction.
+
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/extFileStorage.png "")
+
  
 Go into your user profile and click on the Box User Profile button
 
 1.	Click on Log Into Box button (see Known Issues section if the popup is blank)
 2.	Enter your Box.com account credentials, click Authorize and on the next screen
+
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/login.png "")
+
  
 On success you should see a screen similar to this one :
+
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/loginSuccess.png "")
  
 Go to Configuration > Document Management > Box > Folder Synchronisation and click the Process All button.
- 
+
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/screenConfig.png "")
 The two checkboxes are optional.
 Force Update Folders Description: Use the universal index data to set a folder description on existing box folder.
 Force Rescan Folder: Force synchronisation between Box folders and screen documents even if no changes are detected.
@@ -49,6 +58,7 @@ The Screen Configuration screen is used to configure the folder hierarchy that w
 2.	Choose the fields that will be used as levels for the Box account folder hierarchy
 3.	Click Move Folders button to move existing items to the new folder hierarchy
 
+![alt text](https://github.com/Acumatica/acumatica-boxstorageprovider/blob/master/ReadMeImages/synch.png "")
 
 Known Issues
 ------------
