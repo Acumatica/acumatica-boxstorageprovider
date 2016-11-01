@@ -1,0 +1,16 @@
+﻿<Sql TableName="BoxUserTokens" TableSchemaXml="#CDATA">
+    <CDATA name="TableSchemaXml"><![CDATA[<table name="BoxUserTokens">
+  <col name="CompanyID" type="Int" default="Zero" />
+  <col name="UserID" type="UniqueIdentifier" />
+  <col name="AccessToken" type="NVarChar(255)" nullable="true" />
+  <col name="BoxUserID" type="NVarChar(255)" nullable="true" />
+  <col name="BoxEmailAddress" type="NVarChar(255)" nullable="true" />
+  <col name="SiteAdministrator" type="Bit" nullable="true" />
+  <col name="RefreshToken" type="NVarChar(255)" nullable="true" />
+  <col name="RefreshTokenDate" type="DateTime" nullable="true" />
+  <index name="BoxUserTokens_PK" clustered="true" primary="true" unique="true">
+    <col name="CompanyID" />
+    <col name="UserID" />
+  </index>
+</table>]]></CDATA>
+</Sql>

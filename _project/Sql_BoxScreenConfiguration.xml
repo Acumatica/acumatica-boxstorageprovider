@@ -1,0 +1,11 @@
+﻿<Sql TableName="BoxScreenConfiguration" TableSchemaXml="#CDATA">
+    <CDATA name="TableSchemaXml"><![CDATA[<table name="BoxScreenConfiguration">
+  <col name="CompanyID" type="Int" default="Zero" />
+  <col name="ScreenID" type="VarChar(8)" />
+  <col name="LineCntr" type="Int" />
+  <index name="BoxScreenConfiguration_PK" clustered="true" primary="true" unique="true">
+    <col name="CompanyID" />
+    <col name="ScreenID" />
+  </index>
+</table>]]></CDATA>
+</Sql>
