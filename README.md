@@ -62,7 +62,7 @@ The Screen Configuration screen is used to configure the folder hierarchy that w
 
 Known Issues
 ------------
-The Box.com popup where you enter your credentials might appear blank on Google Chrome. Since this should only be done once, we recommend to just use another browser to complete this step.
+The Box.com popup where you enter your credentials might appear blank on Google Chrome. Since this should only be done once, we recommend using another browser to complete this step.
 
 ## Copyright and License
 
