@@ -9,7 +9,7 @@ using PX.Common;
 [assembly: PX.SM.PXBlobStorageProvider(typeof(PX.SM.BoxStorageProvider.BoxBlobStorageProvider), "Box.com Storage")]
 namespace PX.SM.BoxStorageProvider
 {
-    public class BoxBlobStorageProvider : IPXFileAttachmentProvider, IBlobStorageProvider
+    public class BoxBlobStorageProvider : IPXFileAttachmentProvider
     {
         internal const string RootFolderParam = "RootFolder";
         internal string RootFolder;
@@ -88,6 +88,10 @@ namespace PX.SM.BoxStorageProvider
             FileHandler graph = PXGraph.CreateInstance<FileHandler>();
             Guid blobHandler = graph.SaveFileToBoxAndUpdateFileCache(data, saveContext);
             return blobHandler;
+        }
+
+        public void CleanUp(int companyId)
+        {
         }
     }
 }
