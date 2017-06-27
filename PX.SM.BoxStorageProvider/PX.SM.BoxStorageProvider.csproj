@@ -42,12 +42,11 @@
   <ItemGroup>
     <Reference Include="PX.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\6.10.0472\Bin\PX.Common.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Box6.10.0755\Bin\PX.Common.dll</HintPath>
     </Reference>
     <Reference Include="PX.Data, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\6.10.0472\Bin\PX.Data.dll</HintPath>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Box6.10.0755\Bin\PX.Data.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
@@ -75,7 +74,9 @@
     <Compile Include="UserTokenHandler.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="var.snk" />
   </ItemGroup>
   <ItemGroup>

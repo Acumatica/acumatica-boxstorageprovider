@@ -10,7 +10,7 @@ function get(value, name)
     return result;
 }
 
-var error = get(location.search.substr(1), 'error')
+var error = get(location.search.substr(1), 'error');
 if(error)
 {
     var errorDescription = get(location.search.substr(1), 'error_description').replace(/\+/g, " ");
