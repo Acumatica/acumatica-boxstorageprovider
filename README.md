@@ -11,7 +11,7 @@ A custom file storage provider for Acumatica that allow tight integration with B
 * Modified Box .NET SDK to use www.boxenterprise.net which allows usage in China
 
 
-###Prerequisites
+### Prerequisites
 * Acumatica 5.3 or higher
 * A Box.com account (personal or enterprise)
 
