@@ -15,11 +15,11 @@ namespace PX.SM.BoxStorageProvider
 {
     public static class BoxUtils
     {
-        public const string ClientID = "bfqst5k2brzabtaorwrn68y2eqarwmhm";
-        private const string ClientSecret = "9wrzqjJGL8Te0YxyJyCf0RPrSmvIufGk";
-        private const string RedirectUri = "https://acumatica.velixo.com/Box";
+        public const string ClientID = "qo3lun142vpmtzyjlgqq1vkzycqb1tjk";
+        private const string ClientSecret = "o9cdwhUUipOztBK4r9wMRXkcZQvcQsZo";
+        private const string RedirectUri = "https://acumatica.github.io/acumatica-boxstorageprovider/";
 
-    public enum RecursiveDepth
+        public enum RecursiveDepth
         {
             Unlimited = 0,
             NoDepth = 1,
