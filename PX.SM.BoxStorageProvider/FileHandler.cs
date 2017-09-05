@@ -37,6 +37,10 @@ namespace PX.SM.BoxStorageProvider
                 And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
             InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
 
+        public PXSelectJoin<BoxFileCache,
+            InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>,
+            LeftJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFileRevisionNoData.fileID>>>>, Where<NoteDoc.noteID, IsNull, And<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>>> OrphanFiles;
+
         public PXSelect<BoxFolderSublevelCache,
             Where<BoxFolderSublevelCache.screenID, Equal<Required<BoxFolderSublevelCache.screenID>>,
                 And<BoxFolderSublevelCache.grouping, Equal<Required<BoxFolderSublevelCache.grouping>>>>> SubLevelByScreenAndGrouping;
@@ -432,6 +436,16 @@ namespace PX.SM.BoxStorageProvider
                             throw new PXException(Messages.GetFileWithNoDataReturnedUIDNull, fileName);
                         }
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
+                        var orphanFilesFound = OrphanFiles.Select(blobHandlerGuid).Cast<PXResult<BoxFileCache, UploadFileRevisionNoData, NoteDoc>>().Select(se => (UploadFileRevisionNoData)se); ;
+                        //Reattach orphan to its record with FileID-NoteID
+                        if (orphanFilesFound.Any())
+                        {
+                            var orphan = orphanFilesFound.First();
+                            var noteDoc = NoteDocs.Insert();
+                            NoteDocs.SetValueExt<NoteDoc.noteID>(noteDoc, refNoteID);
+                            NoteDocs.SetValueExt<NoteDoc.fileID>(noteDoc, orphan.FileID);
+                            continue;
+                        }
                     }
 
                     var bfc = (BoxFileCache)FilesByBlobHandler.Cache.CreateInstance();
