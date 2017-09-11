@@ -1,5 +1,4 @@
-﻿using Box.V2.Exceptions;
-using PX.Common;
+﻿using PX.Common;
 using PX.Data;
 using System;
 using System.Collections.Generic;
@@ -8,7 +7,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Web.Compilation;
 
 namespace PX.SM.BoxStorageProvider
@@ -239,7 +237,7 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder, bool forceSync = false)
+        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder, bool forceSync, ref List<Exception> exceptions)
         {
             string folderName = string.Format("{0} ({1})", (object)BoxUtils.CleanFileOrFolderName(screen.Name), (object)screen.ScreenID);
 
@@ -290,7 +288,7 @@ namespace PX.SM.BoxStorageProvider
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
             if (screen.ScreenID != FileHandler.MiscellaneousFolderScreenId && (forceSync || screenFolderInfo.LastModifiedDateTime != folderInfo.ModifiedAt))
             {
-                SynchronizeFolderContentsWithScreen(screenFolderInfo.ScreenID, screenFolderInfo.FolderID, forceSync);
+                SynchronizeFolderContentsWithScreen(screenFolderInfo.ScreenID, screenFolderInfo.FolderID, forceSync, ref exceptions);
                 screenFolderInfo.LastModifiedDateTime = folderInfo.ModifiedAt;
                 FoldersByScreen.Update(screenFolderInfo);
                 Actions.PressSave();
@@ -329,7 +327,7 @@ namespace PX.SM.BoxStorageProvider
             Actions.PressSave();
         }
 
-        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync)
+        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync, ref List<Exception> exceptions)
         {
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
@@ -377,13 +375,21 @@ namespace PX.SM.BoxStorageProvider
 
                 if (currentFolder.ActivityFolderID != null)
                 {
-                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
+                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync, ref exceptions);
                 }
             }
 
             //Remaining files aren't found in cache but are in Box server. 
             if (filesFoundOnlyOnServer.Any())
             {
+                if (refNoteID == null)
+                {
+                    // User may have created some folder manually with a name not matching to any record, or record
+                    // may have been deleted in Acumatica. We can safely ignore it, but let's write to trace.
+                    PXTrace.WriteWarning(string.Format("No record found for folder {0} (screen {1}, ID {2})", folderName, screenID, folderID));
+                    return;
+                }
+
                 UploadFileMaintenance ufm = PXGraph.CreateInstance<UploadFileMaintenance>();
                 ufm.IgnoreFileRestrictions = true;
 
@@ -395,7 +401,7 @@ namespace PX.SM.BoxStorageProvider
                 foreach (BoxUtils.FileFolderInfo boxFile in filesFoundOnlyOnServer)
                 {
                     ufm.Clear();
-                    string fileName = string.Format("{0}\\{1}", folderName, boxFile.Name);
+                    string fileName = string.Format("{0}\\{1}", folderName, boxFile.Name.Replace(Path.GetInvalidPathChars(), ' '));
                     FileInfo fileInfo = ufm.GetFileWithNoData(fileName);
                     Guid? blobHandlerGuid;
                     if (fileInfo == null)
@@ -436,11 +442,10 @@ namespace PX.SM.BoxStorageProvider
                             throw new PXException(Messages.GetFileWithNoDataReturnedUIDNull, fileName);
                         }
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
-                        var orphanFilesFound = OrphanFiles.Select(blobHandlerGuid).Cast<PXResult<BoxFileCache, UploadFileRevisionNoData, NoteDoc>>().Select(se => (UploadFileRevisionNoData)se); ;
+                        var orphan = (UploadFileRevisionNoData)(PXResult<BoxFileCache, UploadFileRevisionNoData>)OrphanFiles.Select(blobHandlerGuid);
                         //Reattach orphan to its record with FileID-NoteID
-                        if (orphanFilesFound.Any())
+                        if (orphan != null && orphan.FileID != null)
                         {
-                            var orphan = orphanFilesFound.First();
                             var noteDoc = NoteDocs.Insert();
                             NoteDocs.SetValueExt<NoteDoc.noteID>(noteDoc, refNoteID);
                             NoteDocs.SetValueExt<NoteDoc.fileID>(noteDoc, orphan.FileID);
@@ -491,7 +496,7 @@ namespace PX.SM.BoxStorageProvider
         }
 
 
-        private void SynchronizeFolderContentsWithScreen(string screenID, string folderID, bool isForcingSync)
+        private void SynchronizeFolderContentsWithScreen(string screenID, string folderID, bool isForcingSync, ref List<Exception> exceptions)
         {
             // Retrieve top-level folder list
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
@@ -539,7 +544,7 @@ namespace PX.SM.BoxStorageProvider
 
                 if (isForcingSync || bfc.LastModifiedDateTime != boxFolderInfo.ModifiedAt)
                 {
-                    RefreshRecordFileList(screenID, boxFolderInfo.Name, boxFolderInfo.ID, bfc.RefNoteID, isForcingSync);
+                    RefreshRecordFileList(screenID, boxFolderInfo.Name, boxFolderInfo.ID, bfc.RefNoteID, isForcingSync, ref exceptions);
                     bfc.LastModifiedDateTime = boxFolderInfo.ModifiedAt;
                     FoldersByFolderID.Update(bfc);
                     PXContext.SetSlot<bool>("BoxDisableLoad", true);
@@ -881,8 +886,5 @@ namespace PX.SM.BoxStorageProvider
 
             return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
         }
-
-
-
     }
 }

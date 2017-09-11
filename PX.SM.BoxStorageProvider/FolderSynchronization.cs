@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using PX.Data;
 using PX.Api;
+using System.Linq;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -52,10 +53,17 @@ namespace PX.SM.BoxStorageProvider
             {
                 try
                 {
-                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder);
+                    graph.Clear();
+                    var exceptions = new List<Exception>();
+                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder, ref exceptions);
                     if (filter.IsForceUpdatingFolderDescription)
                     {
                         graph.UpdateFolderDescriptions(list[i]);
+                    }
+
+                    if(exceptions.Any())
+                    {
+                        PXProcessing<Screen>.SetWarning(i, String.Join(", ", exceptions.Select(x=>x.Message)));
                     }
 
                     PXProcessing<Screen>.SetInfo(i, ActionsMessages.RecordProcessed);

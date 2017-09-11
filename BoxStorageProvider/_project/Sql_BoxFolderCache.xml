@@ -1,0 +1,23 @@
+﻿<Sql TableName="BoxFolderCache" TableSchemaXml="#CDATA">
+    <CDATA name="TableSchemaXml"><![CDATA[<table name="BoxFolderCache">
+  <col name="CompanyID" type="Int" default="Zero" />
+  <col name="FolderID" type="NVarChar(256)" />
+  <col name="LastModifiedDateTime" type="DateTime" nullable="true" />
+  <col name="RefNoteID" type="UniqueIdentifier" nullable="true" />
+  <col name="ParentFolderID" type="NVarChar(256)" nullable="true" />
+  <col name="ScreenID" type="VarChar(8)" nullable="true" />
+  <col name="ActivityFolderID" type="NVarChar(256)" nullable="true" />
+  <index name="BoxFolderCache_PK" clustered="true" primary="true" unique="true">
+    <col name="CompanyID" />
+    <col name="FolderID" />
+  </index>
+  <index name="BoxFolderCache_ScreenID_index">
+    <col name="CompanyID" />
+    <col name="ScreenID" />
+  </index>
+  <index name="BoxFolderCache_RefNoteID_index">
+    <col name="CompanyID" />
+    <col name="RefNoteID" />
+  </index>
+</table>]]></CDATA>
+</Sql>

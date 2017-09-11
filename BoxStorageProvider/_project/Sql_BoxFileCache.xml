@@ -1,0 +1,12 @@
+﻿<Sql TableName="BoxFileCache" TableSchemaXml="#CDATA">
+    <CDATA name="TableSchemaXml"><![CDATA[<table name="BoxFileCache">
+  <col name="CompanyID" type="Int" default="Zero" />
+  <col name="BlobHandler" type="UniqueIdentifier" />
+  <col name="FileID" type="NVarChar(256)" />
+  <col name="ParentFolderID" type="NVarChar(256)" nullable="true" />
+  <index name="BoxFileCache_PK" clustered="true" primary="true" unique="true">
+    <col name="CompanyID" />
+    <col name="BlobHandler" />
+  </index>
+</table>]]></CDATA>
+</Sql>

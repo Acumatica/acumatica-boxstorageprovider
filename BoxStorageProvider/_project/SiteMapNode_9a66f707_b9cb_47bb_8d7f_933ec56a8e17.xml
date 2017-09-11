@@ -1,0 +1,13 @@
+﻿<SiteMapNode>
+    <data-set>
+        <relations version="3" main-table="SiteMap" />
+        <layout>
+            <table name="SiteMap" />
+        </layout>
+        <data>
+            <SiteMap>
+                <row Position="1055" Title="Box User Configuration" Url="~/Pages/SM/SM202610.aspx" Expanded="0" IsFolder="0" ScreenID="SM202610" NodeID="9a66f707-b9cb-47bb-8d7f-933ec56a8e17" ParentID="84351bc9-bf6c-48b5-9dea-f8207283b64a" />
+            </SiteMap>
+        </data>
+    </data-set>
+</SiteMapNode>
