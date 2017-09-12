@@ -237,7 +237,7 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder, bool forceSync, ref List<Exception> exceptions)
+        public void SynchronizeScreen(Screen screen, BoxUtils.FileFolderInfo rootFolder, bool forceSync)
         {
             string folderName = string.Format("{0} ({1})", (object)BoxUtils.CleanFileOrFolderName(screen.Name), (object)screen.ScreenID);
 
@@ -288,7 +288,7 @@ namespace PX.SM.BoxStorageProvider
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
             if (screen.ScreenID != FileHandler.MiscellaneousFolderScreenId && (forceSync || screenFolderInfo.LastModifiedDateTime != folderInfo.ModifiedAt))
             {
-                SynchronizeFolderContentsWithScreen(screenFolderInfo.ScreenID, screenFolderInfo.FolderID, forceSync, ref exceptions);
+                SynchronizeFolderContentsWithScreen(screenFolderInfo.ScreenID, screenFolderInfo.FolderID, forceSync);
                 screenFolderInfo.LastModifiedDateTime = folderInfo.ModifiedAt;
                 FoldersByScreen.Update(screenFolderInfo);
                 Actions.PressSave();
@@ -327,7 +327,7 @@ namespace PX.SM.BoxStorageProvider
             Actions.PressSave();
         }
 
-        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync, ref List<Exception> exceptions)
+        public void RefreshRecordFileList(string screenID, string folderName, string folderID, Guid? refNoteID, bool isForcingSync)
         {
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
 
@@ -375,7 +375,7 @@ namespace PX.SM.BoxStorageProvider
 
                 if (currentFolder.ActivityFolderID != null)
                 {
-                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync, ref exceptions);
+                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
                 }
             }
 
@@ -496,7 +496,7 @@ namespace PX.SM.BoxStorageProvider
         }
 
 
-        private void SynchronizeFolderContentsWithScreen(string screenID, string folderID, bool isForcingSync, ref List<Exception> exceptions)
+        private void SynchronizeFolderContentsWithScreen(string screenID, string folderID, bool isForcingSync)
         {
             // Retrieve top-level folder list
             var tokenHandler = PXGraph.CreateInstance<UserTokenHandler>();
@@ -544,7 +544,7 @@ namespace PX.SM.BoxStorageProvider
 
                 if (isForcingSync || bfc.LastModifiedDateTime != boxFolderInfo.ModifiedAt)
                 {
-                    RefreshRecordFileList(screenID, boxFolderInfo.Name, boxFolderInfo.ID, bfc.RefNoteID, isForcingSync, ref exceptions);
+                    RefreshRecordFileList(screenID, boxFolderInfo.Name, boxFolderInfo.ID, bfc.RefNoteID, isForcingSync);
                     bfc.LastModifiedDateTime = boxFolderInfo.ModifiedAt;
                     FoldersByFolderID.Update(bfc);
                     PXContext.SetSlot<bool>("BoxDisableLoad", true);

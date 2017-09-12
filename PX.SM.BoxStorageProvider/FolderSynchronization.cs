@@ -54,16 +54,10 @@ namespace PX.SM.BoxStorageProvider
                 try
                 {
                     graph.Clear();
-                    var exceptions = new List<Exception>();
-                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder, ref exceptions);
+                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder);
                     if (filter.IsForceUpdatingFolderDescription)
                     {
                         graph.UpdateFolderDescriptions(list[i]);
-                    }
-
-                    if(exceptions.Any())
-                    {
-                        PXProcessing<Screen>.SetWarning(i, String.Join(", ", exceptions.Select(x=>x.Message)));
                     }
 
                     PXProcessing<Screen>.SetInfo(i, ActionsMessages.RecordProcessed);
