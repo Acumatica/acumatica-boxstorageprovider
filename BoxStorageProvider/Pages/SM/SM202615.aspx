@@ -11,7 +11,10 @@
         You may now close this window.
     </div>
     <script>
-        window.parent.px_all["ctl00_phF_pnlAuth"].hide();
+        var frMain = window.opener.px.searchFrame(window.opener.top, "main")
+        var ds = frMain.px_all[frMain.dsID]; //dsID defined in SM202610
+        ds.executeCallback("CompleteAuthentication");
+        window.close();
     </script>
 </body>
 </html>
