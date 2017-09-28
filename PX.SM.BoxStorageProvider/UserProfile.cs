@@ -22,7 +22,7 @@ namespace PX.SM.BoxStorageProvider
         {
             Actions.PressSave();
 
-            string state = "acumaticaUrl=" + HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority) + System.Web.VirtualPathUtility.ToAbsolute("~/Pages/SM/SM202615.aspx") +
+            string state = "acumaticaUrl=" + HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority) + System.Web.VirtualPathUtility.ToAbsolute("~/Frames/BoxAuth.aspx") +
                 "&userID=" + this.User.Current.UserID.ToString();
 
             string authUrl = "https://www.box.com/api/oauth2/authorize?response_type=code" +

@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="SM202615.aspx.cs" Inherits="Pages_SM_SM202615" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeFile="BoxAuth.aspx.cs" Inherits="Frames_BoxAuth" %>
 
 <!DOCTYPE html>
 
