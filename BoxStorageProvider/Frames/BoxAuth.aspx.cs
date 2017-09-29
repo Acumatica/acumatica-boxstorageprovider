@@ -8,7 +8,7 @@ using PX.Data;
 using PX.SM.BoxStorageProvider;
 using PX.Common;
 
-public partial class Pages_SM_SM202615 : System.Web.UI.Page
+public partial class Frames_BoxAuth : System.Web.UI.Page
 {
     protected void Page_Load(object sender, EventArgs e)
     {

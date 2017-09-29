@@ -64,33 +64,33 @@ namespace PX.SM.BoxStorageProvider
             client.Auth.SessionAuthenticated += tokenHandler.SessionAuthenticated;
             client.Auth.SessionInvalidated += tokenHandler.SessionInvalidated;
 
-            await client.Auth.AuthenticateAsync(authCode);
+            await client.Auth.AuthenticateAsync(authCode).ConfigureAwait(false);
         }
 
 
         public static async Task<Box.V2.Models.BoxUser> GetUserInfo(UserTokenHandler tokenHandler)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await client.UsersManager.GetCurrentUserInformationAsync();
+            return await client.UsersManager.GetCurrentUserInformationAsync().ConfigureAwait(false);
         }
 
         public static async Task<FileFolderInfo> CreateFolder(UserTokenHandler tokenHandler, string name, string parentFolderID)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await BoxUtils.CreateFolder(client, tokenHandler, name, parentFolderID);
+            return await BoxUtils.CreateFolder(client, tokenHandler, name, parentFolderID).ConfigureAwait(false);
         }
 
         private static async Task<FileFolderInfo> CreateFolder(BoxClient client, UserTokenHandler tokenHandler, string name, string parentFolderID)
         {
             var folderRequest = new BoxFolderRequest { Name = name, Parent = new BoxRequestEntity { Id = parentFolderID } };
-            Box.V2.Models.BoxFolder folder = await client.FoldersManager.CreateAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt });
+            Box.V2.Models.BoxFolder folder = await client.FoldersManager.CreateAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt }).ConfigureAwait(false);
             return new FileFolderInfo(folder.Id, folder.Name, parentFolderID, folder.ModifiedAt);
         }
 
         public static async Task<FileFolderInfo> CreateFolder(UserTokenHandler tokenHandler, string name, string parentFolderID, string description)
         {
             var client = GetNewBoxClient(tokenHandler);
-            FileFolderInfo folderInfo = await CreateFolder(client, tokenHandler, name, parentFolderID);
+            FileFolderInfo folderInfo = await CreateFolder(client, tokenHandler, name, parentFolderID).ConfigureAwait(false);
             UpdateFolderDescription(client, tokenHandler, folderInfo.ID, description).Wait();
 
             return new FileFolderInfo
@@ -105,7 +105,7 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<FileFolderInfo> UpdateFolderDescription(UserTokenHandler tokenHandler, string folderID, string description)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await UpdateFolderDescription(client, tokenHandler, folderID, description);
+            return await UpdateFolderDescription(client, tokenHandler, folderID, description).ConfigureAwait(false);
         }
 
         private static async Task<FileFolderInfo> UpdateFolderDescription(BoxClient client, UserTokenHandler tokenHandler, string folderID, string description)
@@ -113,7 +113,7 @@ namespace PX.SM.BoxStorageProvider
             if (!string.IsNullOrWhiteSpace(description))
             {
                 var folderRequest = new BoxFolderRequest { Id = folderID, Description = description };
-                BoxFolder folder = await client.FoldersManager.UpdateInformationAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldParent, BoxItem.FieldModifiedAt });
+                BoxFolder folder = await client.FoldersManager.UpdateInformationAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldParent, BoxItem.FieldModifiedAt }).ConfigureAwait(false);
 
                 return new FileFolderInfo
                 {
@@ -130,7 +130,7 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<FileFolderInfo> GetFileInfo(UserTokenHandler tokenHandler, string fileID)
         {
             var client = GetNewBoxClient(tokenHandler);
-            Box.V2.Models.BoxFile file = await client.FilesManager.GetInformationAsync(fileID, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent });
+            Box.V2.Models.BoxFile file = await client.FilesManager.GetInformationAsync(fileID, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent }).ConfigureAwait(false);
             return new FileFolderInfo
             {
                 ID = file.Id,
@@ -143,7 +143,7 @@ namespace PX.SM.BoxStorageProvider
         public static async Task<FileFolderInfo> GetFolderInfo(UserTokenHandler tokenHandler, string folderID)
         {
             var client = GetNewBoxClient(tokenHandler);
-            Box.V2.Models.BoxFolder folder = await client.FoldersManager.GetInformationAsync(folderID, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent });
+            Box.V2.Models.BoxFolder folder = await client.FoldersManager.GetInformationAsync(folderID, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent }).ConfigureAwait(false);
             return new FileFolderInfo
             {
                 ID = folder.Id,
@@ -157,7 +157,7 @@ namespace PX.SM.BoxStorageProvider
         {
             var client = GetNewBoxClient(tokenHandler);
             var fileRequest = new Box.V2.Models.BoxFileRequest { Name = fileName, Parent = new BoxRequestEntity { Id = parentFolderID } };
-            Box.V2.Models.BoxFile file = await client.FilesManager.UploadAsync(fileRequest, new MemoryStream(data));
+            Box.V2.Models.BoxFile file = await client.FilesManager.UploadAsync(fileRequest, new MemoryStream(data)).ConfigureAwait(false);
             return new FileFolderInfo
             {
                 ID = file.Id,
@@ -170,14 +170,14 @@ namespace PX.SM.BoxStorageProvider
         {
             var client = GetNewBoxClient(tokenHandler);
             var memoryStream = new MemoryStream();
-            using (Stream stream = await client.FilesManager.DownloadStreamAsync(fileID))
+            using (Stream stream = await client.FilesManager.DownloadStreamAsync(fileID).ConfigureAwait(false))
             {
                 int bytesRead;
                 var buffer = new byte[8192];
                 do
                 {
-                    bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    await memoryStream.WriteAsync(buffer, 0, bytesRead);
+                    bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                    await memoryStream.WriteAsync(buffer, 0, bytesRead).ConfigureAwait(false);
                 } while (bytesRead > 0);
             }
             return memoryStream.ToArray();
@@ -186,26 +186,26 @@ namespace PX.SM.BoxStorageProvider
         public static async Task DeleteFile(UserTokenHandler tokenHandler, string fileID)
         {
             var client = GetNewBoxClient(tokenHandler);
-            await client.FilesManager.DeleteAsync(fileID);
+            await client.FilesManager.DeleteAsync(fileID).ConfigureAwait(false);
         }
 
         public static async Task<List<FileFolderInfo>> GetFileList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFileListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty);
+            return await GetFileListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty).ConfigureAwait(false);
         }
 
         public static async Task<List<FileFolderInfo>> GetFolderList(UserTokenHandler tokenHandler, string folderID, int recurseDepth)
         {
             var client = GetNewBoxClient(tokenHandler);
-            return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty);
+            return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty).ConfigureAwait(false);
         }
 
         public static async Task<FileFolderInfo> FindFolder(UserTokenHandler tokenHandler, string parentFolderID, string name)
         {
             var client = GetNewBoxClient(tokenHandler);
 
-            return await FindFolderInternal(client, parentFolderID, 0, name);
+            return await FindFolderInternal(client, parentFolderID, 0, name).ConfigureAwait(false);
         }
 
         public static async Task<FileFolderInfo> MoveFolder(UserTokenHandler tokenHandler, string movingFolderID, string newParentFolderID)
@@ -213,7 +213,7 @@ namespace PX.SM.BoxStorageProvider
             var client = GetNewBoxClient(tokenHandler);
 
             var folderRequest = new BoxFolderRequest { Id = movingFolderID, Parent = new BoxRequestEntity() { Id = newParentFolderID, Type = BoxType.folder } };
-            BoxFolder folder = await client.FoldersManager.UpdateInformationAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent });
+            BoxFolder folder = await client.FoldersManager.UpdateInformationAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent }).ConfigureAwait(false);
 
             return new FileFolderInfo(folder.Id, folder.Name, folder.Parent.Id, folder.ModifiedAt);
         }
@@ -221,7 +221,7 @@ namespace PX.SM.BoxStorageProvider
         private static async Task<FileFolderInfo> FindFolderInternal(BoxClient client, string parentFolderID, int offset, string name)
         {
             var list = new List<FileFolderInfo>();
-            var folderItems = await client.FoldersManager.GetFolderItemsAsync(parentFolderID, FolderItemsCollectionLimit, offset, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt });
+            var folderItems = await client.FoldersManager.GetFolderItemsAsync(parentFolderID, FolderItemsCollectionLimit, offset, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt }).ConfigureAwait(false);
 
             foreach (var item in folderItems.Entries)
             {
@@ -239,7 +239,7 @@ namespace PX.SM.BoxStorageProvider
 
             if (folderItems.Offset + folderItems.Limit < folderItems.TotalCount)
             {
-                return await FindFolderInternal(client, parentFolderID, offset + folderItems.Limit, name);
+                return await FindFolderInternal(client, parentFolderID, offset + folderItems.Limit, name).ConfigureAwait(false);
             }
 
             return null;
@@ -248,13 +248,13 @@ namespace PX.SM.BoxStorageProvider
         private static async Task<List<FileFolderInfo>> GetFileListInternal(BoxClient client, string folderID, int offset, int recurseDepth, int currentDepth, string levelName)
         {
             var list = new List<FileFolderInfo>();
-            var folderItems = await client.FoldersManager.GetFolderItemsAsync(folderID, FolderItemsCollectionLimit, offset);
+            var folderItems = await client.FoldersManager.GetFolderItemsAsync(folderID, FolderItemsCollectionLimit, offset).ConfigureAwait(false);
 
             foreach (var item in folderItems.Entries)
             {
                 if (item.Type == "folder" && (currentDepth < recurseDepth || recurseDepth == 0))
                 {
-                    list.AddRange(await GetFileListInternal(client, item.Id, 0, recurseDepth, currentDepth + 1, string.IsNullOrEmpty(levelName) ? item.Name : string.Format("{0}\\{1}", levelName, item.Name)));
+                    list.AddRange(await GetFileListInternal(client, item.Id, 0, recurseDepth, currentDepth + 1, string.IsNullOrEmpty(levelName) ? item.Name : string.Format("{0}\\{1}", levelName, item.Name)).ConfigureAwait(false));
                 }
                 else
                 {
@@ -269,7 +269,7 @@ namespace PX.SM.BoxStorageProvider
 
             if (folderItems.Offset + folderItems.Limit < folderItems.TotalCount)
             {
-                list.AddRange(await GetFileListInternal(client, folderID, offset + folderItems.Limit, recurseDepth, currentDepth, levelName));
+                list.AddRange(await GetFileListInternal(client, folderID, offset + folderItems.Limit, recurseDepth, currentDepth, levelName).ConfigureAwait(false));
             }
 
             return list;
@@ -278,7 +278,7 @@ namespace PX.SM.BoxStorageProvider
         private static async Task<List<FileFolderInfo>> GetFolderListInternal(BoxClient client, string folderID, int offset, int recurseDepth, int currentDepth, string levelName)
         {
             var list = new List<FileFolderInfo>();
-            var folderItems = await client.FoldersManager.GetFolderItemsAsync(folderID, FolderItemsCollectionLimit, offset, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt });
+            var folderItems = await client.FoldersManager.GetFolderItemsAsync(folderID, FolderItemsCollectionLimit, offset, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt }).ConfigureAwait(false);
 
             foreach (var item in folderItems.Entries)
             {
@@ -294,14 +294,14 @@ namespace PX.SM.BoxStorageProvider
 
                     if (currentDepth < recurseDepth || recurseDepth == 0)
                     {
-                        list.AddRange(await GetFolderListInternal(client, item.Id, 0, recurseDepth, currentDepth + 1, string.IsNullOrEmpty(levelName) ? item.Name : string.Format("{0}\\{1}", levelName, item.Name)));
+                        list.AddRange(await GetFolderListInternal(client, item.Id, 0, recurseDepth, currentDepth + 1, string.IsNullOrEmpty(levelName) ? item.Name : string.Format("{0}\\{1}", levelName, item.Name)).ConfigureAwait(false));
                     }
                 }
             }
 
             if (folderItems.Offset + folderItems.Limit < folderItems.TotalCount)
             {
-                list.AddRange(await GetFolderListInternal(client, folderID, offset + folderItems.Limit, recurseDepth, currentDepth, levelName));
+                list.AddRange(await GetFolderListInternal(client, folderID, offset + folderItems.Limit, recurseDepth, currentDepth, levelName).ConfigureAwait(false));
             }
 
             return list;
@@ -311,7 +311,7 @@ namespace PX.SM.BoxStorageProvider
         {
             var client = GetNewBoxClient(tokenHandler);
             var fileRequest = new Box.V2.Models.BoxFileRequest { Id = fileID, Description = description };
-            await client.FilesManager.UpdateInformationAsync(fileRequest);
+            await client.FilesManager.UpdateInformationAsync(fileRequest).ConfigureAwait(false);
         }
 
         public class FileFolderInfo

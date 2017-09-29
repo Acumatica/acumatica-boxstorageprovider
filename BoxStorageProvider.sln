@@ -1,33 +1,33 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PX.SM.BoxStorageProvider", "PX.SM.BoxStorageProvider\PX.SM.BoxStorageProvider.csproj", "{347EB52B-75DA-43A9-ADB1-41F30BD51E63}"
 EndProject
-Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "Staging5.30.1672", "..\..\Program Files (x86)\Acumatica ERP\Staging5.30.1672\", "{A722E58D-F942-489F-B0FE-47F940CB821A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Box.V2", "..\acumatica-box-windows-sdk-v2\Box.V2\Box.V2.csproj", "{740075F5-8B88-4B8A-A75A-564F66359607}"
+EndProject
+Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "AcumaticaDemo60", "http://localhost/AcumaticaDemo60", "{2A652927-7EF5-411C-8831-714CC67B5D06}"
 	ProjectSection(WebsiteProperties) = preProject
+		UseIISExpress = "false"
 		TargetFrameworkMoniker = ".NETFramework,Version%3Dv4.5.1"
 		ProjectReferences = "{347eb52b-75da-43a9-adb1-41f30bd51e63}|PX.SM.BoxStorageProvider.dll;{740075F5-8B88-4B8A-A75A-564F66359607}|Box.V2.dll;"
-		Debug.AspNetCompiler.VirtualPath = "/localhost_54979"
-		Debug.AspNetCompiler.PhysicalPath = "..\..\Program Files (x86)\Acumatica ERP\Staging5.30.1672\"
-		Debug.AspNetCompiler.TargetPath = "PrecompiledWeb\localhost_54979\"
+		Debug.AspNetCompiler.VirtualPath = "/AcumaticaDemo60"
+		Debug.AspNetCompiler.PhysicalPath = "..\..\Program Files (x86)\Acumatica ERP\AcumaticaDemo60\"
+		Debug.AspNetCompiler.TargetPath = "PrecompiledWeb\AcumaticaDemo60\"
 		Debug.AspNetCompiler.Updateable = "true"
 		Debug.AspNetCompiler.ForceOverwrite = "true"
 		Debug.AspNetCompiler.FixedNames = "false"
 		Debug.AspNetCompiler.Debug = "True"
-		Release.AspNetCompiler.VirtualPath = "/localhost_54979"
-		Release.AspNetCompiler.PhysicalPath = "..\..\Program Files (x86)\Acumatica ERP\Staging5.30.1672\"
-		Release.AspNetCompiler.TargetPath = "PrecompiledWeb\localhost_54979\"
+		Release.AspNetCompiler.VirtualPath = "/AcumaticaDemo60"
+		Release.AspNetCompiler.PhysicalPath = "..\..\Program Files (x86)\Acumatica ERP\AcumaticaDemo60\"
+		Release.AspNetCompiler.TargetPath = "PrecompiledWeb\AcumaticaDemo60\"
 		Release.AspNetCompiler.Updateable = "true"
 		Release.AspNetCompiler.ForceOverwrite = "true"
 		Release.AspNetCompiler.FixedNames = "false"
 		Release.AspNetCompiler.Debug = "False"
-		VWDPort = "54979"
-		SlnRelativePath = "..\..\Program Files (x86)\Acumatica ERP\Staging5.30.1672\"
+		SlnRelativePath = "..\..\Program Files (x86)\Acumatica ERP\AcumaticaDemo60\"
 	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Box.V2", "..\acumatica-box-windows-sdk-v2\Box.V2\Box.V2.csproj", "{740075F5-8B88-4B8A-A75A-564F66359607}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,14 +39,14 @@ Global
 		{347EB52B-75DA-43A9-ADB1-41F30BD51E63}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{347EB52B-75DA-43A9-ADB1-41F30BD51E63}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{347EB52B-75DA-43A9-ADB1-41F30BD51E63}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A722E58D-F942-489F-B0FE-47F940CB821A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A722E58D-F942-489F-B0FE-47F940CB821A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A722E58D-F942-489F-B0FE-47F940CB821A}.Release|Any CPU.ActiveCfg = Debug|Any CPU
-		{A722E58D-F942-489F-B0FE-47F940CB821A}.Release|Any CPU.Build.0 = Debug|Any CPU
 		{740075F5-8B88-4B8A-A75A-564F66359607}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{740075F5-8B88-4B8A-A75A-564F66359607}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{740075F5-8B88-4B8A-A75A-564F66359607}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{740075F5-8B88-4B8A-A75A-564F66359607}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A652927-7EF5-411C-8831-714CC67B5D06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A652927-7EF5-411C-8831-714CC67B5D06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A652927-7EF5-411C-8831-714CC67B5D06}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A652927-7EF5-411C-8831-714CC67B5D06}.Release|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

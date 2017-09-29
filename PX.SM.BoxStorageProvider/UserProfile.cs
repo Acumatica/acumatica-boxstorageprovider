@@ -2,6 +2,10 @@
 using PX.Data;
 using System;
 using System.Collections;
+using System.Text;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.HtmlControls;
 
 namespace PX.SM.BoxStorageProvider
 {
@@ -17,8 +21,15 @@ namespace PX.SM.BoxStorageProvider
         public virtual IEnumerable Login(PXAdapter adapter)
         {
             Actions.PressSave();
-            AuthInfo.AskExt();
-            return adapter.Get();
+
+            string state = "acumaticaUrl=" + HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority) + System.Web.VirtualPathUtility.ToAbsolute("~/Frames/BoxAuth.aspx") +
+                "&userID=" + this.User.Current.UserID.ToString();
+
+            string authUrl = "https://www.box.com/api/oauth2/authorize?response_type=code" +
+                "&client_id=" + BoxUtils.ClientID +
+                "&state=" + Convert.ToBase64String(Encoding.UTF8.GetBytes(state));
+
+            throw new PXRedirectToUrlException(authUrl, PXBaseRedirectException.WindowMode.NewWindow, "");
         }
         
         public PXAction<BoxUserTokens> completeAuthentication;

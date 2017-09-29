@@ -283,6 +283,7 @@ namespace PX.SM.BoxStorageProvider
                 screenFolderInfo.ScreenID = screen.ScreenID;
                 screenFolderInfo.LastModifiedDateTime = null; //To force initial sync
                 screenFolderInfo = FoldersByScreen.Insert(screenFolderInfo);
+                Actions.PressSave();
             }
 
             // We don't synchronize the miscellaneous files folder, since we can't easily identify the corresponding NoteID from folder
