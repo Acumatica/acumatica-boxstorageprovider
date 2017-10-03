@@ -697,7 +697,8 @@ namespace PX.SM.BoxStorageProvider
             }
 
             object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
-            if (entityRow.GetType().FullName == "PX.Objects.CR.EPActivity" && activityRefNoteID != null)
+            if ((entityRow.GetType().FullName == "PX.Objects.CR.CRSMEmail" ||
+                entityRow.GetType().FullName == "PX.Objects.CR.CRActivity") && activityRefNoteID != null)
             {
                 return GetOrCreateActivityFolder(refNoteID, tokenHandler, entityRow, activityRefNoteID);
             }
