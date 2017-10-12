@@ -83,11 +83,5 @@ namespace PX.SM.BoxStorageProvider
             PXTrace.WriteError(exception);
             throw exception;
         }
-
-        public static bool IsMatchingActivitiesFolderRegex(string text)
-        {
-            var regex = new Regex($@"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}\\");
-            return regex.IsMatch(text);
-        }
     }
 }

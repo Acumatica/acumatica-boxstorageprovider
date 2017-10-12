@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Web.Compilation;
 
 namespace PX.SM.BoxStorageProvider
@@ -14,6 +15,7 @@ namespace PX.SM.BoxStorageProvider
     public class FileHandler : PXGraph<FileHandler>
     {
         public const string MiscellaneousFolderScreenId = "00000000";
+        public const string ActivityMaintScreenId = "CR306010";
 
         public PXSelect<BoxFolderCache, Where<BoxFolderCache.screenID, Equal<Required<BoxFolderCache.screenID>>>> FoldersByScreen;
 
@@ -356,17 +358,17 @@ namespace PX.SM.BoxStorageProvider
             }
 
             // Remove any files/folders coming from activities stored beneath the current record, they've been processed above
-            var filesFoundOnlyOnServer = boxFileList.Where(x => !ScreenUtils.IsMatchingActivitiesFolderRegex(x.Name)).ToList();
+            var filesFoundOnlyOnServer = boxFileList.Where(x => !x.Name.StartsWith(Messages.ActivitiesFolderName)).ToList();
 
             //Check for underlying activities records
             BoxFolderCache currentFolder = FoldersByFolderID.Select(folderID);
-            if (currentFolder != null && boxFileList.Any(x => ScreenUtils.IsMatchingActivitiesFolderRegex(x.Name)))
+            if (currentFolder != null && boxFileList.Any(x => x.Name.StartsWith(Messages.ActivitiesFolderName)))
             {
                 // If nullOrEmpty, Folder may have been created manually
                 if (string.IsNullOrEmpty(currentFolder.ActivityFolderID))
                 {
                     //Find actual folder ID and save in BoxFolderCache's ActivityFolderID field
-                    BoxUtils.FileFolderInfo activityFolderinfo = BoxUtils.FindFolder(tokenHandler, folderID, $"{PXLocalizer.Localize(Messages.ActivitiesFolderName)}").Result;
+                    BoxUtils.FileFolderInfo activityFolderinfo = BoxUtils.FindFolder(tokenHandler, folderID, Messages.ActivitiesFolderName).Result;
                     if (activityFolderinfo != null)
                     {
                         currentFolder.ActivityFolderID = activityFolderinfo?.ID;
@@ -376,7 +378,7 @@ namespace PX.SM.BoxStorageProvider
 
                 if (currentFolder.ActivityFolderID != null)
                 {
-                    SynchronizeFolderContentsWithScreen("CR306010", currentFolder.ActivityFolderID, isForcingSync);
+                    SynchronizeFolderContentsWithScreen(ActivityMaintScreenId, currentFolder.ActivityFolderID, isForcingSync);
                 }
             }
 
@@ -518,7 +520,18 @@ namespace PX.SM.BoxStorageProvider
                 if (bfc == null)
                 {
                     // We've never seen this folder; sync it
-                    Guid? refNoteID = FindMatchingNoteIDForFolder(screenID, boxFolderInfo.Name);
+                    Guid? refNoteID;
+
+                    if (screenID == ActivityMaintScreenId)
+                    {
+                        //Activity folders use custom naming defined in GetFolderNameForActivityRow() - just look for GUID inside it.
+                        refNoteID = ExtractGuidFromString(boxFolderInfo.Name);
+                    }
+                    else
+                    {
+                        refNoteID = FindMatchingNoteIDForFolder(screenID, boxFolderInfo.Name);
+                    }
+
                     if (refNoteID == null)
                     {
                         // User may have created some folder manually with a name not matching to any record, or record
@@ -558,6 +571,20 @@ namespace PX.SM.BoxStorageProvider
                         PXContext.SetSlot<bool>("BoxDisableLoad", false);
                     }
                 }
+            }
+        }
+
+        private Guid? ExtractGuidFromString(string value)
+        {
+            var guidRegEx = new Regex(@"[0-9a-z]{8}\-[0-9a-z]{4}\-[0-9a-z]{4}\-[0-9a-z]{4}\-[0-9a-z]{12}", RegexOptions.IgnoreCase);
+            var match = guidRegEx.Match(value);
+            if (match.Success)
+            {
+                return Guid.Parse(match.Value);
+            }
+            else
+            {
+                return null;
             }
         }
 
@@ -695,14 +722,12 @@ namespace PX.SM.BoxStorageProvider
             {
                 ScreenUtils.TraceAndThrowException(Messages.EntityRowForNoteIDNotFound, refNoteID);
             }
-
+            
             object activityRefNoteID = entityRow.GetType().GetProperty("RefNoteID")?.GetValue(entityRow);
-            if ((entityRow.GetType().FullName == "PX.Objects.CR.CRSMEmail" ||
-                entityRow.GetType().FullName == "PX.Objects.CR.CRActivity") && activityRefNoteID != null)
+            if (activityRefNoteID != null && Type.GetType("PX.Objects.CR.CRActivity, PX.Objects").IsAssignableFrom(entityRow.GetType()))
             {
                 return GetOrCreateActivityFolder(refNoteID, tokenHandler, entityRow, activityRefNoteID);
             }
-
             else
             {
                 // Create folder from screenID, for example "Customers (AR303000)"
@@ -787,12 +812,12 @@ namespace PX.SM.BoxStorageProvider
             string folderID = GetOrCreateBoxFolderForNoteID(activityRefNoteGuid);
             BoxFolderCache recordFolderCache = FoldersByFolderID.Select(folderID);
 
-            //Get/Create Activities folder 
+            //Get or create Activities folder 
             BoxUtils.FileFolderInfo activityFolderInfo = null;
             if (string.IsNullOrEmpty(recordFolderCache.ActivityFolderID))
             {
                 // Create Activities folder and update cache for future reference.
-                activityFolderInfo = GetOrCreateFolder(tokenHandler, recordFolderCache.FolderID, null, null, PXLocalizer.Localize(Messages.ActivitiesFolderName));
+                activityFolderInfo = GetOrCreateFolder(tokenHandler, recordFolderCache.FolderID, null, null, Messages.ActivitiesFolderName);
                 recordFolderCache.ActivityFolderID = activityFolderInfo.ID;
                 FoldersByFolderID.Update(recordFolderCache);
                 Actions.PressSave();
@@ -822,7 +847,8 @@ namespace PX.SM.BoxStorageProvider
             }
 
             //Get/Create activityRecord folder
-            return GetOrCreateFolderForEntity(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID);
+            string folderName = GetFolderNameForActivityRow(entityRow);
+            return GetOrCreateFolder(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID, folderName);
         }
 
         private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
@@ -887,6 +913,17 @@ namespace PX.SM.BoxStorageProvider
             }
 
             return BoxUtils.CleanFileOrFolderName(string.Join(" ", keyValues));
+        }
+
+        private string GetFolderNameForActivityRow(object entityRow)
+        {
+            PXCache cache = Caches[entityRow.GetType()];
+            string folderName = String.Format("{0:yyyy-MM-dd} - {1} (ID: {2})",
+                cache.GetValue(entityRow, "StartDate"),
+                cache.GetValue(entityRow, "Subject"),
+                cache.GetValue(entityRow, "NoteID"));
+
+            return BoxUtils.CleanFileOrFolderName(folderName);
         }
     }
 }
