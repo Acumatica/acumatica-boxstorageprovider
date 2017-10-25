@@ -94,17 +94,14 @@ namespace PX.SM.BoxStorageProvider
                     BoxFolderCache bfc = (BoxFolderCache) fileHandlerGraph.FoldersByFolderID.Select(folder.ID);
                     if(bfc != null && bfc.RefNoteID.HasValue)
                     {
-                        object entityRow = entityHelper.GetEntityRow(new Guid?(bfc.RefNoteID.Value), true);
-                        if (entityRow == null) continue; //GetOrCreateSublevelFolder will throw an exception because the entity no longer exist - folder was deleted after initial Box sync...
-
                         string presumedParentFolderID = screenFolderCache.FolderID;
                         if (fileHandlerGraph.FieldsGroupingByScreenID.Select(Screens.Current.ScreenID).Any())
                         {
-                            presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value);
+                            presumedParentFolderID = fileHandlerGraph.GetOrCreateSublevelFolder(tokenHandler, Screens.Current.ScreenID, screenFolderCache.FolderID, bfc.RefNoteID.Value, false);
                         }
 
                         //if nested under the wrong folder
-                        if (folder.ParentFolderID != presumedParentFolderID)
+                        if (presumedParentFolderID != null && folder.ParentFolderID != presumedParentFolderID)
                         {
                             try
                             {
