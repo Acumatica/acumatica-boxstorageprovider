@@ -17,11 +17,11 @@ public partial class Pages_SM_SM202670 : System.Web.UI.Page
 
         if (!String.IsNullOrEmpty(folderID) && !String.IsNullOrEmpty(fileID))
         {
-            fraContent.Attributes["src"] = "https://box.com/embed_widget/000000000000/files/0/f/" + folderID + "/1/f_" + fileID;
+            fraContent.Attributes["src"] = "https://boxenterprise.net/embed_widget/000000000000/files/0/f/" + folderID + "/1/f_" + fileID;
         }
         else if (!String.IsNullOrEmpty(folderID))
         {
-            fraContent.Attributes["src"] = "https://box.com/embed_widget/000000000000/files/0/f/" + folderID;
+            fraContent.Attributes["src"] = "https://boxenterprise.net/embed_widget/000000000000/files/0/f/" + folderID;
         }
         else
         {
