@@ -746,7 +746,7 @@ namespace PX.SM.BoxStorageProvider
                 string parentFolderID = string.Empty;
                 if (FieldsGroupingByScreenID.Select(siteMapNode.ScreenID).Any())
                 {
-                    parentFolderID = GetOrCreateSublevelFolder(tokenHandler, siteMapNode.ScreenID, bfcParent.FolderID, refNoteID);
+                    parentFolderID = GetOrCreateSublevelFolder(tokenHandler, siteMapNode.ScreenID, bfcParent.FolderID, refNoteID, true);
                 }
                 else
                 {
@@ -757,13 +757,21 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID)
+        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID, bool throwOnError)
         {
             BoxFolderSublevelCache sublevelFolder;
             var subLevelGrouping = GetSublevelName(refNoteID);
             if (string.IsNullOrEmpty(subLevelGrouping))
             {
-                ScreenUtils.TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
+                if (throwOnError)
+                {
+                    ScreenUtils.TraceAndThrowException(Messages.SubLevelConfigurationInvalid);
+                }
+                else
+                {
+                    PXTrace.WriteWarning(string.Format("No sublevel grouping found for note ID {0} (screen {1}, parent folder {2})", refNoteID, screenID, parentFolderID));
+                    return null;
+                }
             }
 
             sublevelFolder = (BoxFolderSublevelCache)SubLevelByScreenAndGrouping.Select(screenID, subLevelGrouping);
