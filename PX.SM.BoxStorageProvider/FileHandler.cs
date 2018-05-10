@@ -398,7 +398,7 @@ namespace PX.SM.BoxStorageProvider
 
                 ufm.RowInserting.AddHandler<UploadFileRevision>(delegate (PXCache sender, PXRowInsertingEventArgs e)
                 {
-                    ((UploadFileRevision)e.Row).BlobHandler = new Guid?(Guid.NewGuid());
+                    ((UploadFileRevision)e.Row).BlobHandler = Guid.NewGuid();
                 });
                 //Add files to the caches
                 foreach (BoxUtils.FileFolderInfo boxFile in filesFoundOnlyOnServer)
@@ -679,10 +679,10 @@ namespace PX.SM.BoxStorageProvider
             return providerSettings.Value;
         }
 
-        private string GetSublevelName(Guid refNoteID)
+        private string GetSublevelName(Guid? refNoteID)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
+            object entityRow = entityHelper.GetEntityRow(refNoteID, true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null || entityRow == null)
             {
@@ -709,10 +709,10 @@ namespace PX.SM.BoxStorageProvider
             return string.IsNullOrEmpty(subLevelName) ? Messages.UndefinedGrouping : subLevelName;
         }
 
-        private BoxUtils.FileFolderInfo CreateBoxFolder(Guid refNoteID, UserTokenHandler tokenHandler)
+        private BoxUtils.FileFolderInfo CreateBoxFolder(Guid? refNoteID, UserTokenHandler tokenHandler)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
+            object entityRow = entityHelper.GetEntityRow(refNoteID, true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null)
             {
@@ -757,7 +757,7 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID, bool throwOnError)
+        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid? refNoteID, bool throwOnError)
         {
             BoxFolderSublevelCache sublevelFolder;
             var subLevelGrouping = GetSublevelName(refNoteID);
@@ -811,7 +811,7 @@ namespace PX.SM.BoxStorageProvider
             return sublevelFolder.FolderID;
         }
 
-        private BoxUtils.FileFolderInfo GetOrCreateActivityFolder(Guid refNoteID, UserTokenHandler tokenHandler, object entityRow, object activityRefNoteID)
+        private BoxUtils.FileFolderInfo GetOrCreateActivityFolder(Guid? refNoteID, UserTokenHandler tokenHandler, object entityRow, object activityRefNoteID)
         {
             //Save an activity related file into the record's activity folder
             var activityRefNoteGuid = Guid.Parse(activityRefNoteID.ToString());
@@ -859,7 +859,7 @@ namespace PX.SM.BoxStorageProvider
             return GetOrCreateFolder(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID, folderName);
         }
 
-        private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
+        private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid? refNoteID)
         {
             // Try to find folder; if it doesn't exist, create it.
             string folderName = GetFolderNameForEntityRow(entityRow);
