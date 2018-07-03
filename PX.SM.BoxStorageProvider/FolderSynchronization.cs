@@ -14,7 +14,7 @@ namespace PX.SM.BoxStorageProvider
         public abstract class isForceUpdatingFolderDescription : IBqlField { }
         [PXBool]
         [PXUIField(DisplayName = "Force Update Folder Descriptions")]
-        public virtual bool IsForceUpdatingFolderDescription { get; set; }
+        public virtual bool? IsForceUpdatingFolderDescription { get; set; }
 
         #endregion
 
@@ -23,7 +23,7 @@ namespace PX.SM.BoxStorageProvider
         public abstract class isForceRescaningFolder : IBqlField { }
         [PXBool]
         [PXUIField(DisplayName = "Force Rescan Folder")]
-        public virtual bool IsForceRescaningFolder { get; set; }
+        public virtual bool? IsForceRescaningFolder { get; set; }
 
         #endregion
     }
@@ -54,8 +54,8 @@ namespace PX.SM.BoxStorageProvider
                 try
                 {
                     graph.Clear();
-                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder);
-                    if (filter.IsForceUpdatingFolderDescription)
+                    graph.SynchronizeScreen(list[i], rootFolder, filter.IsForceRescaningFolder.GetValueOrDefault());
+                    if (filter.IsForceUpdatingFolderDescription == true)
                     {
                         graph.UpdateFolderDescriptions(list[i]);
                     }
