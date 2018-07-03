@@ -37,9 +37,7 @@ namespace PX.SM.BoxStorageProvider
                 And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
             InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
 
-        public PXSelectJoin<BoxFileCache,
-            InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>,
-            LeftJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFileRevisionNoData.fileID>>>>, Where<NoteDoc.noteID, IsNull, And<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>>> OrphanFiles;
+        public PXSelect<NoteDoc, Where<NoteDoc.fileID, Equal<Required<NoteDoc.fileID>>>> NoteDocsByFileID;
 
         public PXSelect<BoxFolderSublevelCache,
             Where<BoxFolderSublevelCache.screenID, Equal<Required<BoxFolderSublevelCache.screenID>>,
@@ -446,21 +444,26 @@ namespace PX.SM.BoxStorageProvider
                         }
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
 
-                        //Clear old references of this blob handler from cache
+                        //Clear old references of this blob handler from cache; it will be reinserted with up-to-date info
                         var bfcOrphan = (BoxFileCache)FilesByBlobHandler.Select(blobHandlerGuid);
                         if(bfcOrphan != null)
                         {
                             FilesByBlobHandler.Delete(bfcOrphan);
                         }
 
-                        //Reattach orphan to its record with FileID-NoteID
-                        var orphan = (UploadFileRevisionNoData)(PXResult<BoxFileCache, UploadFileRevisionNoData>)OrphanFiles.Select(blobHandlerGuid);
-                        if (orphan != null && orphan.FileID != null)
+                        //Update NoteDoc entry if existing file was moved to new NoteID or create it if not there
+                        NoteDoc nd = (NoteDoc) NoteDocsByFileID.Select(fileInfo.UID);
+                        if (nd == null)
                         {
-                            var noteDoc = NoteDocs.Insert();
-                            NoteDocs.SetValueExt<NoteDoc.noteID>(noteDoc, refNoteID);
-                            NoteDocs.SetValueExt<NoteDoc.fileID>(noteDoc, orphan.FileID);
-                            continue;
+                            nd = (NoteDoc)NoteDocs.Cache.CreateInstance();
+                            nd.NoteID = refNoteID;
+                            nd.FileID = fileInfo.UID;
+                            NoteDocs.Insert(nd);
+                        }
+                        else if(nd.NoteID != refNoteID)
+                        {
+                            nd.NoteID = refNoteID;
+                            NoteDocs.Update(nd);
                         }
                     }
 
