@@ -445,8 +445,16 @@ namespace PX.SM.BoxStorageProvider
                             throw new PXException(Messages.GetFileWithNoDataReturnedUIDNull, fileName);
                         }
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
-                        var orphan = (UploadFileRevisionNoData)(PXResult<BoxFileCache, UploadFileRevisionNoData>)OrphanFiles.Select(blobHandlerGuid);
+
+                        //Clear old references of this blob handler from cache
+                        var bfcOrphan = (BoxFileCache)FilesByBlobHandler.Select(blobHandlerGuid);
+                        if(bfcOrphan != null)
+                        {
+                            FilesByBlobHandler.Delete(bfcOrphan);
+                        }
+
                         //Reattach orphan to its record with FileID-NoteID
+                        var orphan = (UploadFileRevisionNoData)(PXResult<BoxFileCache, UploadFileRevisionNoData>)OrphanFiles.Select(blobHandlerGuid);
                         if (orphan != null && orphan.FileID != null)
                         {
                             var noteDoc = NoteDocs.Insert();
@@ -517,6 +525,19 @@ namespace PX.SM.BoxStorageProvider
             foreach (BoxUtils.FileFolderInfo boxFolderInfo in boxFolderList)
             {
                 BoxFolderCache bfc = FoldersByFolderID.Select(boxFolderInfo.ID);
+                if(bfc != null)
+                {
+                    //Make sure NoteDoc still exists
+                    NoteDoc nd = NoteDocs.Select(bfc.RefNoteID);
+                    if(nd == null)
+                    {
+                        //NoteDoc can't be found; this is likely a file coming from a record that was deleted.
+                        //Since an existing folder may be renamed to something which exists, we want to force system to treat it as if it was a new folder
+                        FoldersByFolderID.Delete(bfc);
+                        bfc = null;
+                    }
+                }
+
                 if (bfc == null)
                 {
                     // We've never seen this folder; sync it
