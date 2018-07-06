@@ -37,9 +37,7 @@ namespace PX.SM.BoxStorageProvider
                 And<UploadFile.lastRevisionID, Equal<UploadFileRevisionNoData.fileRevisionID>>>,
             InnerJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFile.fileID>>>>>, Where<NoteDoc.noteID, Equal<Required<NoteDoc.noteID>>>> FilesByNoteID;
 
-        public PXSelectJoin<BoxFileCache,
-            InnerJoin<UploadFileRevisionNoData, On<UploadFileRevisionNoData.blobHandler, Equal<BoxFileCache.blobHandler>>,
-            LeftJoin<NoteDoc, On<NoteDoc.fileID, Equal<UploadFileRevisionNoData.fileID>>>>, Where<NoteDoc.noteID, IsNull, And<BoxFileCache.blobHandler, Equal<Required<BoxFileCache.blobHandler>>>>> OrphanFiles;
+        public PXSelect<NoteDoc, Where<NoteDoc.fileID, Equal<Required<NoteDoc.fileID>>>> NoteDocsByFileID;
 
         public PXSelect<BoxFolderSublevelCache,
             Where<BoxFolderSublevelCache.screenID, Equal<Required<BoxFolderSublevelCache.screenID>>,
@@ -398,7 +396,7 @@ namespace PX.SM.BoxStorageProvider
 
                 ufm.RowInserting.AddHandler<UploadFileRevision>(delegate (PXCache sender, PXRowInsertingEventArgs e)
                 {
-                    ((UploadFileRevision)e.Row).BlobHandler = new Guid?(Guid.NewGuid());
+                    ((UploadFileRevision)e.Row).BlobHandler = Guid.NewGuid();
                 });
                 //Add files to the caches
                 foreach (BoxUtils.FileFolderInfo boxFile in filesFoundOnlyOnServer)
@@ -445,14 +443,27 @@ namespace PX.SM.BoxStorageProvider
                             throw new PXException(Messages.GetFileWithNoDataReturnedUIDNull, fileName);
                         }
                         blobHandlerGuid = GetBlobHandlerForFileID(fileInfo.UID.Value);
-                        var orphan = (UploadFileRevisionNoData)(PXResult<BoxFileCache, UploadFileRevisionNoData>)OrphanFiles.Select(blobHandlerGuid);
-                        //Reattach orphan to its record with FileID-NoteID
-                        if (orphan != null && orphan.FileID != null)
+
+                        //Clear old references of this blob handler from cache; it will be reinserted with up-to-date info
+                        var bfcOrphan = (BoxFileCache)FilesByBlobHandler.Select(blobHandlerGuid);
+                        if(bfcOrphan != null)
                         {
-                            var noteDoc = NoteDocs.Insert();
-                            NoteDocs.SetValueExt<NoteDoc.noteID>(noteDoc, refNoteID);
-                            NoteDocs.SetValueExt<NoteDoc.fileID>(noteDoc, orphan.FileID);
-                            continue;
+                            FilesByBlobHandler.Delete(bfcOrphan);
+                        }
+
+                        //Update NoteDoc entry if existing file was moved to new NoteID or create it if not there
+                        NoteDoc nd = (NoteDoc) NoteDocsByFileID.Select(fileInfo.UID);
+                        if (nd == null)
+                        {
+                            nd = (NoteDoc)NoteDocs.Cache.CreateInstance();
+                            nd.NoteID = refNoteID;
+                            nd.FileID = fileInfo.UID;
+                            NoteDocs.Insert(nd);
+                        }
+                        else if(nd.NoteID != refNoteID)
+                        {
+                            nd.NoteID = refNoteID;
+                            NoteDocs.Update(nd);
                         }
                     }
 
@@ -517,6 +528,19 @@ namespace PX.SM.BoxStorageProvider
             foreach (BoxUtils.FileFolderInfo boxFolderInfo in boxFolderList)
             {
                 BoxFolderCache bfc = FoldersByFolderID.Select(boxFolderInfo.ID);
+                if(bfc != null)
+                {
+                    //Make sure NoteDoc still exists
+                    NoteDoc nd = NoteDocs.Select(bfc.RefNoteID);
+                    if(nd == null)
+                    {
+                        //NoteDoc can't be found; this is likely a file coming from a record that was deleted.
+                        //Since an existing folder may be renamed to something which exists, we want to force system to treat it as if it was a new folder
+                        FoldersByFolderID.Delete(bfc);
+                        bfc = null;
+                    }
+                }
+
                 if (bfc == null)
                 {
                     // We've never seen this folder; sync it
@@ -679,10 +703,10 @@ namespace PX.SM.BoxStorageProvider
             return providerSettings.Value;
         }
 
-        private string GetSublevelName(Guid refNoteID)
+        private string GetSublevelName(Guid? refNoteID)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
+            object entityRow = entityHelper.GetEntityRow(refNoteID, true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null || entityRow == null)
             {
@@ -709,10 +733,10 @@ namespace PX.SM.BoxStorageProvider
             return string.IsNullOrEmpty(subLevelName) ? Messages.UndefinedGrouping : subLevelName;
         }
 
-        private BoxUtils.FileFolderInfo CreateBoxFolder(Guid refNoteID, UserTokenHandler tokenHandler)
+        private BoxUtils.FileFolderInfo CreateBoxFolder(Guid? refNoteID, UserTokenHandler tokenHandler)
         {
             EntityHelper entityHelper = new EntityHelper(this);
-            object entityRow = entityHelper.GetEntityRow(new Guid?(refNoteID), true);
+            object entityRow = entityHelper.GetEntityRow(refNoteID, true);
             Type primaryGraphType = entityHelper.GetPrimaryGraphType(entityRow, false);
             if (primaryGraphType == null)
             {
@@ -757,7 +781,7 @@ namespace PX.SM.BoxStorageProvider
             }
         }
 
-        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid refNoteID, bool throwOnError)
+        public string GetOrCreateSublevelFolder(UserTokenHandler tokenHandler, string screenID, string parentFolderID, Guid? refNoteID, bool throwOnError)
         {
             BoxFolderSublevelCache sublevelFolder;
             var subLevelGrouping = GetSublevelName(refNoteID);
@@ -811,7 +835,7 @@ namespace PX.SM.BoxStorageProvider
             return sublevelFolder.FolderID;
         }
 
-        private BoxUtils.FileFolderInfo GetOrCreateActivityFolder(Guid refNoteID, UserTokenHandler tokenHandler, object entityRow, object activityRefNoteID)
+        private BoxUtils.FileFolderInfo GetOrCreateActivityFolder(Guid? refNoteID, UserTokenHandler tokenHandler, object entityRow, object activityRefNoteID)
         {
             //Save an activity related file into the record's activity folder
             var activityRefNoteGuid = Guid.Parse(activityRefNoteID.ToString());
@@ -859,7 +883,7 @@ namespace PX.SM.BoxStorageProvider
             return GetOrCreateFolder(tokenHandler, activityFolderInfo.ID, entityRow, refNoteID, folderName);
         }
 
-        private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid refNoteID)
+        private BoxUtils.FileFolderInfo GetOrCreateFolderForEntity(UserTokenHandler tokenHandler, string parentFolderID, object entityRow, Guid? refNoteID)
         {
             // Try to find folder; if it doesn't exist, create it.
             string folderName = GetFolderNameForEntityRow(entityRow);
