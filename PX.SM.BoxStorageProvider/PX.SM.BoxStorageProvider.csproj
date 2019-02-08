@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>PX.SM.BoxStorageProvider</RootNamespace>
     <AssemblyName>PX.SM.BoxStorageProvider</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -40,13 +40,17 @@
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Box.V2, Version=1.0.0.0, Culture=neutral, PublicKeyToken=51dc4be35ce04fe3, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Panova\Bin\Box.V2.dll</HintPath>
+    </Reference>
     <Reference Include="PX.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\AcumaticaDemo60\Bin\PX.Common.dll</HintPath>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Panova\Bin\PX.Common.dll</HintPath>
     </Reference>
     <Reference Include="PX.Data, Version=1.0.0.0, Culture=neutral, PublicKeyToken=3b136cac2f602b8e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\AcumaticaDemo60\Bin\PX.Data.dll</HintPath>
+      <HintPath>..\..\..\Program Files (x86)\Acumatica ERP\Panova\Bin\PX.Data.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
@@ -76,12 +80,6 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="var.snk" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\acumatica-box-windows-sdk-v2\Box.V2\Box.V2.csproj">
-      <Project>{740075f5-8b88-4b8a-a75a-564f66359607}</Project>
-      <Name>Box.V2</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
