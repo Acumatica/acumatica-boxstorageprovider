@@ -201,6 +201,16 @@ namespace PX.SM.BoxStorageProvider
             return await GetFolderListInternal(client, folderID, 0, recurseDepth, (int)RecursiveDepth.NoDepth, string.Empty).ConfigureAwait(false);
         }
 
+        public static async Task<FileFolderInfo> CopyFolder(UserTokenHandler tokenHandler, string copyFolderID, string parentFolderID)
+        {
+            var client = GetNewBoxClient(tokenHandler);
+
+            var folderRequest = new BoxFolderRequest { Id = copyFolderID, Parent = new BoxRequestEntity() { Id = parentFolderID, Type = BoxType.folder } };
+            BoxFolder folder = await client.FoldersManager.CopyAsync(folderRequest, new List<string> { BoxItem.FieldName, BoxItem.FieldModifiedAt, BoxItem.FieldParent }).ConfigureAwait(false);
+            
+            return new FileFolderInfo(folder.Id, folder.Name, folder.Parent.Id, folder.ModifiedAt);
+        }
+
         public static async Task<FileFolderInfo> FindFolder(UserTokenHandler tokenHandler, string parentFolderID, string name)
         {
             var client = GetNewBoxClient(tokenHandler);

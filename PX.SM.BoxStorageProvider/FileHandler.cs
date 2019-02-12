@@ -895,23 +895,42 @@ namespace PX.SM.BoxStorageProvider
             try
             {
                 BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, folderName).Result;
+                List<BoxUtils.FileFolderInfo> newSubFolderList = null;
 
                 if (folderInfo == null)
                 {
                     // Folder doesn't exist on Box, create it.
                     var description = entityRow != null ? GetFolderDescriptionForEntityRow(entityRow) : string.Empty;
                     folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, parentFolderID, description).Result;
-                }
 
+                    //Copy subfolders from template folder if exists
+                    var parentFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, parentFolderID).Result;
+                    var templateFolderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, parentFolderInfo.Name + "_TEMPLATE").Result;
+
+                    if (templateFolderInfo != null)
+                    {
+                        newSubFolderList = new List<BoxUtils.FileFolderInfo>();
+                        foreach (var subFolder in BoxUtils.GetFolderList(tokenHandler, templateFolderInfo.ID, 1).Result)
+                        {
+                            newSubFolderList.Add(BoxUtils.CopyFolder(tokenHandler, subFolder.ID, folderInfo.ID).Result);                            
+                        }
+                    }
+                }
+              
                 if (!FoldersByFolderID.Select(folderInfo.ID).Any())
                 {
-                    // Store the folder info in our local cache for future reference
-                    BoxFolderCache bfc = (BoxFolderCache)FoldersByFolderID.Cache.CreateInstance();
-                    bfc.FolderID = folderInfo.ID;
-                    bfc.ParentFolderID = folderInfo.ParentFolderID;
-                    bfc.RefNoteID = refNoteID;
-                    bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
-                    bfc = FoldersByFolderID.Insert(bfc);
+                    AddFolderToCache(refNoteID, folderInfo);
+
+                    if (newSubFolderList != null)
+                    {
+                        foreach (var subFolder in newSubFolderList)
+                        {
+                            if (!FoldersByFolderID.Select(subFolder.ID).Any())
+                            {
+                                AddFolderToCache(null, subFolder);
+                            }
+                        }
+                    }
                 }
 
                 return folderInfo;
@@ -927,12 +946,23 @@ namespace PX.SM.BoxStorageProvider
                         FoldersByFolderID.Delete(bfc);
                         Actions.PressSave();
                     }
-
-                    throw (new PXException(string.Format(Messages.BoxFolderNotFoundTryAgain, parentFolderID), exception));
+                    
+                    throw (new PXException(exception, Messages.BoxFolderNotFoundTryAgain, parentFolderID));
                 });
 
                 return null;
             }
+        }
+
+        private void AddFolderToCache(Guid? refNoteID, BoxUtils.FileFolderInfo folderInfo)
+        {
+            // Store the folder info in our local cache for future reference
+            BoxFolderCache bfc = (BoxFolderCache)FoldersByFolderID.Cache.CreateInstance();
+            bfc.FolderID = folderInfo.ID;
+            bfc.ParentFolderID = folderInfo.ParentFolderID;
+            bfc.RefNoteID = refNoteID;
+            bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
+            bfc = FoldersByFolderID.Insert(bfc);
         }
 
         private string GetFolderNameForEntityRow(object entityRow)
