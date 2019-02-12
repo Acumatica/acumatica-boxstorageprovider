@@ -904,8 +904,7 @@ namespace PX.SM.BoxStorageProvider
                     folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, parentFolderID, description).Result;
 
                     //Copy subfolders from template folder if exists
-                    var parentFolderInfo = BoxUtils.GetFolderInfo(tokenHandler, parentFolderID).Result;
-                    var templateFolderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, parentFolderInfo.Name + "_TEMPLATE").Result;
+                    var templateFolderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, "Template").Result;
 
                     if (templateFolderInfo != null)
                     {
