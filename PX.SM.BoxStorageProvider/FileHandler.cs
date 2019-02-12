@@ -895,41 +895,36 @@ namespace PX.SM.BoxStorageProvider
             try
             {
                 BoxUtils.FileFolderInfo folderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, folderName).Result;
-                List<BoxUtils.FileFolderInfo> newSubFolderList = null;
 
                 if (folderInfo == null)
                 {
                     // Folder doesn't exist on Box, create it.
                     var description = entityRow != null ? GetFolderDescriptionForEntityRow(entityRow) : string.Empty;
-                    folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, parentFolderID, description).Result;
 
                     //Copy subfolders from template folder if exists
                     var templateFolderInfo = BoxUtils.FindFolder(tokenHandler, parentFolderID, "Template").Result;
 
-                    if (templateFolderInfo != null)
+                    if (templateFolderInfo == null)
                     {
-                        newSubFolderList = new List<BoxUtils.FileFolderInfo>();
-                        foreach (var subFolder in BoxUtils.GetFolderList(tokenHandler, templateFolderInfo.ID, 1).Result)
-                        {
-                            newSubFolderList.Add(BoxUtils.CopyFolder(tokenHandler, subFolder.ID, folderInfo.ID).Result);                            
-                        }
+
+                        folderInfo = BoxUtils.CreateFolder(tokenHandler, folderName, parentFolderID, description).Result;
+                    }
+                    else
+                    {
+                        folderInfo = BoxUtils.CopyFolder(tokenHandler, templateFolderInfo.ID, parentFolderID, folderName, description).Result;
                     }
                 }
               
                 if (!FoldersByFolderID.Select(folderInfo.ID).Any())
                 {
-                    AddFolderToCache(refNoteID, folderInfo);
-
-                    if (newSubFolderList != null)
-                    {
-                        foreach (var subFolder in newSubFolderList)
-                        {
-                            if (!FoldersByFolderID.Select(subFolder.ID).Any())
-                            {
-                                AddFolderToCache(null, subFolder);
-                            }
-                        }
-                    }
+                    // Store the folder info in our local cache for future reference
+                    // doesn't store content from template
+                    BoxFolderCache bfc = (BoxFolderCache)FoldersByFolderID.Cache.CreateInstance();
+                    bfc.FolderID = folderInfo.ID;
+                    bfc.ParentFolderID = folderInfo.ParentFolderID;
+                    bfc.RefNoteID = refNoteID;
+                    bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
+                    bfc = FoldersByFolderID.Insert(bfc);
                 }
 
                 return folderInfo;
@@ -951,17 +946,6 @@ namespace PX.SM.BoxStorageProvider
 
                 return null;
             }
-        }
-
-        private void AddFolderToCache(Guid? refNoteID, BoxUtils.FileFolderInfo folderInfo)
-        {
-            // Store the folder info in our local cache for future reference
-            BoxFolderCache bfc = (BoxFolderCache)FoldersByFolderID.Cache.CreateInstance();
-            bfc.FolderID = folderInfo.ID;
-            bfc.ParentFolderID = folderInfo.ParentFolderID;
-            bfc.RefNoteID = refNoteID;
-            bfc.LastModifiedDateTime = null; // To force initial sync of Box file list with record file ilst
-            bfc = FoldersByFolderID.Insert(bfc);
         }
 
         private string GetFolderNameForEntityRow(object entityRow)
